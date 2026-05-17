@@ -1037,6 +1037,7 @@ async function init() {
     // carrega recompensas, vídeos e notificações
     loadRecompensas();
     loadNotificacoes();
+    window._primeiroLoad = true; // bloqueia celebration durante carregamento inicial
     renderProfile();
     renderTreino();
     renderRepertorio();
@@ -1044,6 +1045,8 @@ async function init() {
     renderRecompensas();
     // carrega vídeos do aluno
     await loadVideos();
+    // libera celebration após carregamento completo
+    setTimeout(() => { window._primeiroLoad = false; }, 800);
     // verifica marcos após carregar tudo
     setTimeout(verificarMarcos, 1000);
     // verifica feedback de vídeos a cada 2 minutos
@@ -1369,9 +1372,9 @@ function updateProgress() {
   document.getElementById('prog-bar').style.width = pct + '%';
   document.getElementById('prog-label').textContent = `${done} de ${total} concluídos`;
   if (done > 0 && done === total) {
-    // só mostra celebração se foi o aluno quem acabou de completar (não ao recarregar)
-    if (window._celebrouHoje !== TODAY) {
-      window._celebrouHoje = TODAY;
+    // só mostra celebração se o aluno está marcando agora, não ao recarregar
+    // _primeiroLoad é true apenas durante o carregamento inicial
+    if (!window._primeiroLoad) {
       setTimeout(showCel, 500);
     }
   }
@@ -2029,18 +2032,11 @@ function renderInsight(data){
 // CELEBRATION
 // ═══════════════════════════════════════════════════════════
 let confPieces=[],confRunning=false,confAF2=null;
-async function showCel(){
+function showCel(){
   document.getElementById('celebration').classList.add('show');
 
-  // Verifica no BANCO se já ganhou XP hoje — não depende de localStorage
-  let jaGanhou = false;
-  try {
-    const regsHoje = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}&concluido=eq.true&limit=1`);
-    // Se já tinha registros concluídos ANTES de agora, já ganhou XP hoje
-    // Usamos o campo xp_concedido para rastrear isso no banco
-    const logXp = await api(`alunos?id=eq.${alunoId}&select=xp_data_treino`);
-    if (logXp?.[0]?.xp_data_treino === TODAY) jaGanhou = true;
-  } catch(e) { console.warn('Check XP:', e); }
+  // Verifica se já ganhou XP hoje pelo campo salvo em alunoData (carregado no init)
+  const jaGanhou = alunoData?.xp_data_treino === TODAY;
 
   const xpAtual = alunoData?.xp || 0;
   const xpNovo = jaGanhou ? xpAtual : xpAtual + 50;
@@ -2050,7 +2046,6 @@ async function showCel(){
     : `+50 XP ganhos! ⚡ Total: ${xpNovo} XP`;
 
   if (!jaGanhou) {
-    // Salva data do XP e novo total no banco
     api(`alunos?id=eq.${alunoId}`,{
       method:'PATCH',
       body:JSON.stringify({xp:xpNovo, xp_data_treino:TODAY}),
