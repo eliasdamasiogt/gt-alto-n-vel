@@ -893,6 +893,7 @@ function renderAlunos() {
           ${renderNotasHtml(a.id)}
           <div class="action-row">
             <button class="btn" onclick="irParaMontar('${a.id}')">✏️ Editar treino</button>
+            <button class="btn" onclick="redefinirSenha('${a.id}','${a.nome}')">🔑 Redefinir senha</button>
             <button class="btn" style="color:var(--ret);border-color:var(--re3)" onclick="confirmarDeletarAluno('${a.id}','${a.nome}')">🗑 Remover aluno</button>
           </div>
         </div>
@@ -1681,6 +1682,19 @@ async function avaliarVideo(videoId, status) {
     if (idx >= 0) todosVideos[idx] = {...todosVideos[idx], status, feedback};
     renderVideos();
     showToast(status === 'aprovado' ? '🚀 Aprovado! Aluno receberá +15 XP.' : '💪 Feedback enviado!');
+  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
+}
+
+
+async function redefinirSenha(alunoId, nome) {
+  if (!confirm(`Redefinir a senha de "${nome}"?\nO aluno será solicitado a criar uma nova senha no próximo acesso.`)) return;
+  try {
+    await api(`sessoes?aluno_id=eq.${alunoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({senha_hash: null}),
+      prefer: 'return=minimal'
+    });
+    showToast(`🔑 Senha de ${nome} redefinida! Ele criará uma nova no próximo acesso.`);
   } catch(e) { showToast('⚠️ Erro: ' + e.message); }
 }
 

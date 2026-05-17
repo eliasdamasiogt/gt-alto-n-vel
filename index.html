@@ -1084,9 +1084,8 @@ async function init() {
     // primeira verificação após 5 segundos
     setTimeout(checkFeedbackVideos, 5000);
 
-    // esconde loading, mostra app
-    document.getElementById('loading').classList.add('hidden');
-    document.getElementById('main-app').style.display = 'block';
+    // verifica senha antes de mostrar o app
+    await verificarSenha();
 
   } catch(e) {
     console.error(e);
@@ -2647,6 +2646,118 @@ async function checkFeedbackVideos() {
   } catch(e) { console.warn('Check feedback:', e); }
 }
 
+
+
+// ═══════════════════════════════════════════════════════════
+// SISTEMA DE SENHA DO ALUNO
+// ═══════════════════════════════════════════════════════════
+
+async function verificarSenha() {
+  // Verifica se o aluno já tem senha cadastrada
+  try {
+    const res = await api(`sessoes?aluno_id=eq.${alunoId}&select=senha_hash`);
+    const temSenha = res?.[0]?.senha_hash;
+
+    if (!temSenha) {
+      // Primeira vez — pede para criar senha
+      mostrarTelaSenha('cadastrar');
+    } else {
+      // Já tem senha — pede para digitar
+      mostrarTelaSenha('entrar');
+    }
+  } catch(e) {
+    console.warn('Erro ao verificar senha:', e);
+    // Se erro, deixa entrar sem senha
+    liberarApp();
+  }
+}
+
+function mostrarTelaSenha(modo) {
+  const screen = document.getElementById('senha-screen');
+  const title = document.getElementById('senha-title');
+  const sub = document.getElementById('senha-sub');
+  const input2 = document.getElementById('senha-input2');
+  const btn = document.getElementById('senha-btn');
+  const nomeEl = document.getElementById('senha-nome');
+
+  if (nomeEl) nomeEl.textContent = alunoData?.nome || '';
+
+  if (modo === 'cadastrar') {
+    title.textContent = 'Criar senha';
+    sub.textContent = 'Crie uma senha para proteger seu treino. Você vai precisar dela nas próximas vezes.';
+    input2.style.display = 'block';
+    btn.textContent = 'Criar senha';
+  } else {
+    title.textContent = 'Bem-vindo de volta!';
+    sub.textContent = 'Digite sua senha para acessar seu treino.';
+    input2.style.display = 'none';
+    btn.textContent = 'Entrar';
+  }
+
+  screen.classList.add('show');
+  document.getElementById('senha-input1').focus();
+  window._modoSenha = modo;
+}
+
+async function confirmarSenha() {
+  const input1 = document.getElementById('senha-input1').value;
+  const input2 = document.getElementById('senha-input2').value;
+  const errorEl = document.getElementById('senha-error');
+  errorEl.textContent = '';
+
+  if (!input1 || input1.length < 4) {
+    errorEl.textContent = 'A senha deve ter pelo menos 4 caracteres.';
+    return;
+  }
+
+  const btn = document.getElementById('senha-btn');
+  btn.disabled = true;
+  btn.textContent = 'Verificando...';
+
+  try {
+    if (window._modoSenha === 'cadastrar') {
+      if (input1 !== input2) {
+        errorEl.textContent = 'As senhas não coincidem.';
+        btn.disabled = false;
+        btn.textContent = 'Criar senha';
+        return;
+      }
+      // Salva hash simples (btoa) — suficiente para esse contexto
+      const hash = btoa(input1 + alunoId);
+      await api(`sessoes?aluno_id=eq.${alunoId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({senha_hash: hash}),
+        prefer: 'return=minimal'
+      });
+      liberarApp();
+      showToast('✅ Senha criada com sucesso!');
+    } else {
+      // Verifica senha
+      const res = await api(`sessoes?aluno_id=eq.${alunoId}&select=senha_hash`);
+      const hashSalvo = res?.[0]?.senha_hash;
+      const hashDigitado = btoa(input1 + alunoId);
+      if (hashSalvo === hashDigitado) {
+        liberarApp();
+      } else {
+        errorEl.textContent = 'Senha incorreta. Tente novamente.';
+        document.getElementById('senha-input1').value = '';
+        document.getElementById('senha-input1').focus();
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      }
+    }
+  } catch(e) {
+    errorEl.textContent = 'Erro de conexão. Tente novamente.';
+    btn.disabled = false;
+    btn.textContent = window._modoSenha === 'cadastrar' ? 'Criar senha' : 'Entrar';
+  }
+}
+
+function liberarApp() {
+  document.getElementById('senha-screen').classList.remove('show');
+  document.getElementById('main-app').style.display = 'block';
+  document.getElementById('loading').classList.add('hidden');
+}
 
 // ═══════════════════════════════════════════════════════════
 // TEMA CLARO / ESCURO
