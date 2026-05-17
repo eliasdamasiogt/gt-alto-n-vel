@@ -673,8 +673,7 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
         <div class="material-error-msg">Este site não permite visualização incorporada.<br>Abra em nova aba para ver o conteúdo.</div>
         <a class="material-error-btn" id="material-error-link" href="#" target="_blank">Abrir em nova aba ↗</a>
       </div>
-      <iframe class="material-iframe" id="material-iframe" src="" allowfullscreen
-        onload="onIframeLoad()" onerror="onIframeError()"></iframe>
+      <iframe class="material-iframe" id="material-iframe" src="" allowfullscreen></iframe>
     </div>
   </div>
 </div>
@@ -2324,6 +2323,11 @@ function abrirMaterial(url, nome, exId) {
   document.getElementById('material-iframe').src = embedUrl;
 
   // Abre overlay
+  // Adiciona listeners ao iframe via JS (mais seguro que atributos inline)
+  const iframe = document.getElementById('material-iframe');
+  iframe.onload = onIframeLoad;
+  iframe.onerror = onIframeError;
+
   document.getElementById('material-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
 
@@ -2653,21 +2657,18 @@ async function checkFeedbackVideos() {
 // ═══════════════════════════════════════════════════════════
 
 async function verificarSenha() {
-  // Verifica se o aluno já tem senha cadastrada
+  // Esconde loading antes de mostrar tela de senha
+  document.getElementById('loading').classList.add('hidden');
   try {
     const res = await api(`sessoes?aluno_id=eq.${alunoId}&select=senha_hash`);
     const temSenha = res?.[0]?.senha_hash;
-
     if (!temSenha) {
-      // Primeira vez — pede para criar senha
       mostrarTelaSenha('cadastrar');
     } else {
-      // Já tem senha — pede para digitar
       mostrarTelaSenha('entrar');
     }
   } catch(e) {
     console.warn('Erro ao verificar senha:', e);
-    // Se erro, deixa entrar sem senha
     liberarApp();
   }
 }
