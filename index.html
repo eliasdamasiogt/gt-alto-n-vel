@@ -1368,7 +1368,13 @@ function updateProgress() {
   const pct = total > 0 ? Math.round(done/total*100) : 0;
   document.getElementById('prog-bar').style.width = pct + '%';
   document.getElementById('prog-label').textContent = `${done} de ${total} concluídos`;
-  if (done > 0 && done === total) setTimeout(showCel, 500);
+  if (done > 0 && done === total) {
+    // só mostra celebração se foi o aluno quem acabou de completar (não ao recarregar)
+    if (window._celebrouHoje !== TODAY) {
+      window._celebrouHoje = TODAY;
+      setTimeout(showCel, 500);
+    }
+  }
   // salva histórico parcial a cada check
   if (done > 0) salvarHistoricoHabilidades().catch(()=>{});
   // verifica se algum marco foi conquistado
@@ -2025,11 +2031,27 @@ function renderInsight(data){
 let confPieces=[],confRunning=false,confAF2=null;
 function showCel(){
   document.getElementById('celebration').classList.add('show');
-  const xp=(alunoData?.xp||0)+50;
-  document.getElementById('cel-xp').textContent=`+50 XP ganhos! ⚡ Total: ${xp} XP`;
-  // atualiza XP no banco
-  api(`alunos?id=eq.${alunoId}`,{method:'PATCH',body:JSON.stringify({xp}),prefer:'return=minimal'}).catch(()=>{});
-  alunoData.xp=xp;
+
+  // Verifica se já ganhou XP de treino hoje para não farmar
+  const xpKey = 'edh_xp_treino_' + alunoId + '_' + TODAY;
+  const jaGanhou = localStorage.getItem(xpKey) === '1';
+
+  const xpAtual = alunoData?.xp || 0;
+  const xpNovo = jaGanhou ? xpAtual : xpAtual + 50;
+  const ganhou = jaGanhou ? 0 : 50;
+
+  document.getElementById('cel-xp').textContent = jaGanhou
+    ? `Treino concluído! ⚡ Total: ${xpAtual} XP`
+    : `+50 XP ganhos! ⚡ Total: ${xpNovo} XP`;
+
+  if (!jaGanhou) {
+    // marca que já ganhou hoje
+    localStorage.setItem(xpKey, '1');
+    // atualiza XP no banco
+    api(`alunos?id=eq.${alunoId}`,{method:'PATCH',body:JSON.stringify({xp:xpNovo}),prefer:'return=minimal'}).catch(()=>{});
+    alunoData.xp = xpNovo;
+  }
+
   // grava histórico de habilidades do dia
   salvarHistoricoHabilidades().catch(e=>console.warn('Histórico:', e));
   // verifica marcos após ganhar XP
