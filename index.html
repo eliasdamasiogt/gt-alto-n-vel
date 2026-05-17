@@ -2029,32 +2029,38 @@ function renderInsight(data){
 // CELEBRATION
 // ═══════════════════════════════════════════════════════════
 let confPieces=[],confRunning=false,confAF2=null;
-function showCel(){
+async function showCel(){
   document.getElementById('celebration').classList.add('show');
 
-  // Verifica se já ganhou XP de treino hoje para não farmar
-  const xpKey = 'edh_xp_treino_' + alunoId + '_' + TODAY;
-  const jaGanhou = localStorage.getItem(xpKey) === '1';
+  // Verifica no BANCO se já ganhou XP hoje — não depende de localStorage
+  let jaGanhou = false;
+  try {
+    const regsHoje = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}&concluido=eq.true&limit=1`);
+    // Se já tinha registros concluídos ANTES de agora, já ganhou XP hoje
+    // Usamos o campo xp_concedido para rastrear isso no banco
+    const logXp = await api(`alunos?id=eq.${alunoId}&select=xp_data_treino`);
+    if (logXp?.[0]?.xp_data_treino === TODAY) jaGanhou = true;
+  } catch(e) { console.warn('Check XP:', e); }
 
   const xpAtual = alunoData?.xp || 0;
   const xpNovo = jaGanhou ? xpAtual : xpAtual + 50;
-  const ganhou = jaGanhou ? 0 : 50;
 
   document.getElementById('cel-xp').textContent = jaGanhou
-    ? `Treino concluído! ⚡ Total: ${xpAtual} XP`
+    ? `Treino já contabilizado hoje! ⚡ Total: ${xpAtual} XP`
     : `+50 XP ganhos! ⚡ Total: ${xpNovo} XP`;
 
   if (!jaGanhou) {
-    // marca que já ganhou hoje
-    localStorage.setItem(xpKey, '1');
-    // atualiza XP no banco
-    api(`alunos?id=eq.${alunoId}`,{method:'PATCH',body:JSON.stringify({xp:xpNovo}),prefer:'return=minimal'}).catch(()=>{});
+    // Salva data do XP e novo total no banco
+    api(`alunos?id=eq.${alunoId}`,{
+      method:'PATCH',
+      body:JSON.stringify({xp:xpNovo, xp_data_treino:TODAY}),
+      prefer:'return=minimal'
+    }).catch(()=>{});
     alunoData.xp = xpNovo;
+    alunoData.xp_data_treino = TODAY;
   }
 
-  // grava histórico de habilidades do dia
   salvarHistoricoHabilidades().catch(e=>console.warn('Histórico:', e));
-  // verifica marcos após ganhar XP
   setTimeout(verificarMarcos, 1200);
   startConf();
 }
