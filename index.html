@@ -1168,10 +1168,8 @@ function renderProfile() {
   // streak
   document.getElementById('streak-num').textContent = '🔥 ' + streak;
 
-  // treinos no mês e % conclusão — só busca ao abrir perfil, não em cada renderProfile
-  if (document.getElementById('perfil')?.style.display !== 'none') {
-    calcularStatsmes();
-  }
+  // treinos no mês e % conclusão
+  calcularStatsmes();
 
   // highlight nível atual
   document.querySelectorAll('.level-card').forEach((c,i) => {
@@ -3092,7 +3090,7 @@ function goTab(id){
   if(map[id]!==undefined)document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
   document.querySelectorAll('.sec').forEach(s=>{s.classList.remove('active');s.style.display='none';});
   const s=document.getElementById(id);if(s){s.classList.add('active');s.style.display='block';}
-  if(id==='perfil'){initRadar();renderRecompensas();}
+  if(id==='perfil'){initRadar();renderRecompensas();calcularStatsmes();}
 }
 
 let toastTimer=null;
