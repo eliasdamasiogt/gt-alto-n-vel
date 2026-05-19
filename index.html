@@ -2273,11 +2273,31 @@ async function salvarHistoricoHabilidades(){
   };
 
   // upsert — se já existe registro hoje, atualiza; senão cria
-  await api('historico_habilidades', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-    headers: {'Prefer': 'resolution=merge-duplicates,return=minimal'},
-  });
+  // Verifica se já existe registro hoje
+  const existeHoje = await api(`historico_habilidades?aluno_id=eq.${alunoId}&data=eq.${TODAY}&select=id`);
+
+  if (existeHoje && existeHoje.length > 0) {
+    // Atualiza o registro existente
+    await api(`historico_habilidades?id=eq.${existeHoje[0].id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        tecnica: payload.tecnica,
+        percepcao: payload.percepcao,
+        harmonia: payload.harmonia,
+        improviso: payload.improviso,
+        repertorio: payload.repertorio,
+        frases: payload.frases,
+      }),
+      prefer: 'return=minimal'
+    });
+  } else {
+    // Cria novo registro
+    await api('historico_habilidades', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      prefer: 'return=representation'
+    });
+  }
 
   // atualiza histórico local para o radar refletir imediatamente
   const idx = historico.findIndex(h => h.data === TODAY);
