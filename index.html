@@ -984,7 +984,14 @@ let checks = {};
 let expanded = {};
 let mState = {}; // metrônomo por exercício
 let audioCtx = null;
-let TODAY = new Date().toISOString().split('T')[0];
+// TODAY em horário de Brasília (UTC-3) para evitar bugs de fuso
+function getTodayBrasilia() {
+  const now = new Date();
+  // UTC-3 = subtrai 3 horas
+  const brasilia = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  return brasilia.toISOString().split('T')[0];
+}
+let TODAY = getTodayBrasilia();
 
 // ═══════════════════════════════════════════════════════════
 // INICIALIZAÇÃO — pega token da URL
@@ -1047,7 +1054,6 @@ async function init() {
       const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
       const ontemStr = ontem.toISOString().split('T')[0];
       const treinouOntem = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${ontemStr}&concluido=eq.true&limit=1`);
-      const treinouHoje = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}&concluido=eq.true&limit=1`);
       let novoStreak = alunoData?.streak || 0;
       if (isNewDay) {
         // novo dia: soma se treinou ontem, zera se não
@@ -1161,8 +1167,10 @@ function renderProfile() {
   // streak
   document.getElementById('streak-num').textContent = '🔥 ' + streak;
 
-  // treinos no mês e % conclusão — busca do banco
-  calcularStatsmes();
+  // treinos no mês e % conclusão — só busca ao abrir perfil, não em cada renderProfile
+  if (document.getElementById('perfil')?.style.display !== 'none') {
+    calcularStatsmes();
+  }
 
   // highlight nível atual
   document.querySelectorAll('.level-card').forEach((c,i) => {
@@ -1735,9 +1743,11 @@ function updateAcentoHint(id){
 
 function adjMBpmEx(id,d){
   const m=mState[id]; if(!m) return;
-  m.bpm=Math.min(240,Math.max(30,m.bpm+d));
-  document.getElementById('mb-bpm-'+id).textContent=m.bpm+' BPM';
-  document.getElementById('tnm-'+id).textContent=getTempo(m.bpm);
+  const ex = exercicios.find(e=>e.id===id);
+  const min = ex?.bpm_inicial||30, max = ex?.bpm_alvo||240;
+  const novoBpm = Math.min(max, Math.max(min, m.bpm+d));
+  // updBpmEx cuida de tudo: visual, slider, banco (com debounce)
+  updBpmEx(id, novoBpm);
   if(m.playing){clearInterval(m.metroIntv);scheduleMetroEx(id);}
 }
 
@@ -1836,7 +1846,7 @@ async function addRepItem(pasta){
   const t=document.getElementById(`fi-${key}-title`)?.value.trim();
   const a=document.getElementById(`fi-${key}-artist`)?.value.trim();
   const tom=document.getElementById(`fi-${key}-tom`)?.value.trim();
-  const bpm=parseInt(document.getElementById(`fi-${key}-bpm`)?.value||document.getElementById(`fi-${key}-artist`)?.value)||null;
+  const bpm=parseInt(document.getElementById(`fi-${key}-bpm`)?.value)||null;
   const link=document.getElementById(`fi-${key}-link`)?.value.trim();
   if(!t) return;
   try{
@@ -2084,13 +2094,22 @@ function showCel(){
     : `+50 XP ganhos! ⚡ Total: ${xpNovo} XP`;
 
   if (!jaGanhou) {
+    // calcula novo nível baseado no XP
+    const nivelThresholds = [0, 300, 1000, 2500, 5000, 10000];
+    let novoNivel = 1;
+    for (let i = nivelThresholds.length - 1; i >= 0; i--) {
+      if (xpNovo >= nivelThresholds[i]) { novoNivel = i + 1; break; }
+    }
+    const subiuNivel = novoNivel > (alunoData?.nivel || 1);
     api(`alunos?id=eq.${alunoId}`,{
       method:'PATCH',
-      body:JSON.stringify({xp:xpNovo, xp_data_treino:TODAY}),
+      body:JSON.stringify({xp:xpNovo, xp_data_treino:TODAY, nivel:novoNivel}),
       prefer:'return=minimal'
     }).catch(()=>{});
     alunoData.xp = xpNovo;
     alunoData.xp_data_treino = TODAY;
+    alunoData.nivel = novoNivel;
+    if (subiuNivel) showToast(`🎉 Parabéns! Você subiu para o Nível ${novoNivel}!`);
   }
 
   salvarHistoricoHabilidades().catch(e=>console.warn('Histórico:', e));
@@ -2108,9 +2127,8 @@ async function verificarAjusteAutoBpm(exId) {
   const ex = exercicios.find(e => e.id === exId);
   if (!ex) return;
 
-  // Verifica se ajuste automático está travado para este exercício
-  const lockKey = 'edh_bpm_lock_' + exId;
-  if (localStorage.getItem(lockKey) === '1') return;
+  // Verifica se ajuste automático está travado — usa campo do banco
+  if (ex.bpm_auto_lock) return; // travado pelo mentor (já declarado acima)
 
   try {
     // Busca as últimas 5 sessões com dificuldade registrada
@@ -2119,6 +2137,10 @@ async function verificarAjusteAutoBpm(exId) {
     );
 
     if (ultimas.length < 3) return; // precisa de ao menos 3 sessões
+
+  // Evita ajustar mais de uma vez por dia no mesmo exercício
+  const ajusteKey = 'edh_bpm_adj_dia_' + exId + '_' + TODAY;
+  if (localStorage.getItem(ajusteKey) === '1') return;
 
     // Conta dificuldades nas últimas 5 (ou menos)
     const faceis   = ultimas.filter(r => r.dificuldade === 'facil').length;
@@ -2157,6 +2179,9 @@ async function verificarAjusteAutoBpm(exId) {
         `${ex.nome}: seu BPM ${tipo === 'up' ? 'subiu' : 'baixou'} para ${novoBpm} com base no seu desempenho.`);
     }
 
+    // Marca que já ajustou hoje
+    localStorage.setItem('edh_bpm_adj_dia_' + exId + '_' + TODAY, '1');
+
     // Mostra badge no card
     renderAutoBpmBadge(exId, tipo, novoBpm || bpmAtual);
 
@@ -2175,7 +2200,8 @@ async function verificarAjusteAutoBpm(exId) {
 function renderAutoBpmBadge(exId, tipo, bpm) {
   const el = document.getElementById('auto-bpm-badge-' + exId);
   if (!el) return;
-  const isLocked = localStorage.getItem('edh_bpm_lock_' + exId) === '1';
+  const exObj = exercicios.find(e => e.id === exId);
+  const isLocked = exObj?.bpm_auto_lock || false;
   const lockHtml = `<div class="bpm-auto-lock" onclick="toggleBpmLock('${exId}')">
     ${isLocked ? '🔒 Ajuste automático desativado' : '🔓 Desativar ajuste automático'}
   </div>`;
@@ -2189,15 +2215,22 @@ function renderAutoBpmBadge(exId, tipo, bpm) {
   }
 }
 
-function toggleBpmLock(exId) {
-  const key = 'edh_bpm_lock_' + exId;
-  const isLocked = localStorage.getItem(key) === '1';
-  localStorage.setItem(key, isLocked ? '0' : '1');
-  // re-renderiza badge
-  const logKey = 'edh_bpm_adj_' + exId;
-  const log = JSON.parse(localStorage.getItem(logKey) || 'null');
-  if (log) renderAutoBpmBadge(exId, log.tipo, log.bpmDepois);
-  showToast(isLocked ? '🔓 Ajuste automático reativado' : '🔒 Ajuste automático desativado');
+async function toggleBpmLock(exId) {
+  const ex = exercicios.find(e => e.id === exId);
+  if (!ex) return;
+  const novoLock = !ex.bpm_auto_lock;
+  try {
+    await api(`exercicios?id=eq.${exId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({bpm_auto_lock: novoLock}),
+      prefer: 'return=minimal'
+    });
+    ex.bpm_auto_lock = novoLock;
+    const logKey = 'edh_bpm_adj_' + exId;
+    const log = JSON.parse(localStorage.getItem(logKey) || 'null');
+    if (log) renderAutoBpmBadge(exId, log.tipo, log.bpmDepois);
+    showToast(novoLock ? '🔒 Ajuste automático desativado' : '🔓 Ajuste automático reativado');
+  } catch(e) { showToast('⚠️ Erro ao salvar.'); }
 }
 
 // Carrega badges de ajuste ao abrir exercício
@@ -2552,14 +2585,28 @@ async function enviarVideo(exId) {
       const res = await api('videos_aluno', {method: 'POST', body: JSON.stringify(payload)});
       if (res?.[0]) videosData[exId] = res[0];
     }
-    // +100 XP pelo envio
-    const novoXp = (alunoData?.xp || 0) + 100;
-    await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({xp:novoXp}), prefer:'return=minimal'});
-    alunoData.xp = novoXp;
+    // +100 XP pelo envio — apenas se ainda não ganhou XP de vídeo hoje
+    const xpVideoKey = 'edh_xp_video_' + alunoId + '_' + TODAY;
+    const jaGanhouXpVideo = localStorage.getItem(xpVideoKey) === '1';
+    if (!jaGanhouXpVideo) {
+      const novoXp = (alunoData?.xp || 0) + 100;
+      // verifica upgrade de nível
+      const nivelThresholds = [0, 300, 1000, 2500, 5000, 10000];
+      let novoNivel = 1;
+      for (let i = nivelThresholds.length - 1; i >= 0; i--) {
+        if (novoXp >= nivelThresholds[i]) { novoNivel = i + 1; break; }
+      }
+      await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({xp:novoXp, nivel:novoNivel}), prefer:'return=minimal'});
+      alunoData.xp = novoXp;
+      alunoData.nivel = novoNivel;
+      localStorage.setItem(xpVideoKey, '1');
+      showToast('🎬 Vídeo enviado! +100 XP ganhos!');
+    } else {
+      showToast('🎬 Vídeo enviado para avaliação!');
+    }
     renderProfile();
     renderVideos();
     if (input) input.value = '';
-    showToast('🎬 Vídeo enviado! +100 XP ganhos!');
   } catch(e) {
     showToast('⚠️ Erro ao enviar: ' + e.message);
   } finally {
@@ -2655,17 +2702,28 @@ async function checkFeedbackVideos() {
   if (!alunoId) return;
   try {
     const vids = await api(`videos_aluno?aluno_id=eq.${alunoId}&select=*`);
+    // chave no localStorage: guarda status já notificado por vídeo
+    const notifKey = 'edh_vid_notif_' + alunoId;
+    let notifLog = {};
+    try { notifLog = JSON.parse(localStorage.getItem(notifKey) || '{}'); } catch(e) {}
+
     vids.forEach(v => {
-      const anterior = videosData[v.exercicio_id];
-      // detecta mudança de status
-      if (anterior && anterior.status !== v.status && v.status !== 'pendente') {
+      const statusAnteriorNotificado = notifLog[v.id];
+      // só notifica se o status mudou E ainda não foi notificado para este status
+      if (v.status !== 'pendente' && statusAnteriorNotificado !== v.status) {
         if (v.status === 'aprovado') {
           addNotificacao('🚀', 'Avance para o próximo nível!',
             `${v.exercicio_nome}: seu mentor aprovou seu vídeo. Hora de subir o BPM!`);
-          // +15 XP pelo feedback positivo
+          // +15 XP pelo feedback positivo — só uma vez por aprovação
           const novoXp = (alunoData?.xp || 0) + 15;
-          api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({xp:novoXp}), prefer:'return=minimal'}).catch(()=>{});
+          const nivelThresholds = [0, 300, 1000, 2500, 5000, 10000];
+          let novoNivel = 1;
+          for (let i = nivelThresholds.length - 1; i >= 0; i--) {
+            if (novoXp >= nivelThresholds[i]) { novoNivel = i + 1; break; }
+          }
+          api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({xp:novoXp, nivel:novoNivel}), prefer:'return=minimal'}).catch(()=>{});
           alunoData.xp = novoXp;
+          alunoData.nivel = novoNivel;
           renderProfile();
           showToast('🚀 Aprovado pelo mentor! +15 XP!');
         } else if (v.status === 'continuar') {
@@ -2673,9 +2731,12 @@ async function checkFeedbackVideos() {
             `${v.exercicio_nome}: ${v.feedback || 'Seu mentor quer que você continue desenvolvendo esse exercício.'}`);
           showToast('💪 Feedback recebido do mentor!');
         }
+        notifLog[v.id] = v.status;
       }
       videosData[v.exercicio_id] = v;
     });
+    // salva log de notificações
+    localStorage.setItem(notifKey, JSON.stringify(notifLog));
     renderVideos();
   } catch(e) { console.warn('Check feedback:', e); }
 }
@@ -3010,6 +3071,13 @@ function startConfRecomp() {
 // TABS / TOAST / UTILS
 // ═══════════════════════════════════════════════════════════
 function goTab(id){
+  // Para todos os metrônomos ao sair da aba treino
+  if (id !== 'treino') {
+    Object.entries(mState).forEach(([exId, m]) => {
+      if (m.playing) toggleMPlayEx(exId);
+    });
+    _fecharMaterial(); // fecha popup de material se aberto
+  }
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
   const map={treino:0,repertorio:1,perfil:2};
   if(map[id]!==undefined)document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
@@ -3031,6 +3099,25 @@ document.querySelectorAll('.sec').forEach(s=>{s.style.display='none'});
 document.getElementById('treino').style.display='block';
 initTema();
 window.addEventListener('load', init);
+
+// Verifica mudança de dia a cada minuto (para apps deixados abertos)
+setInterval(() => {
+  const novoToday = getTodayBrasilia();
+  if (novoToday !== TODAY) {
+    TODAY = novoToday;
+    // Recarrega o treino para o novo dia
+    if (alunoId) {
+      registros = {};
+      checks = {};
+      showToast('🌅 Meia-noite! O treino foi resetado para o novo dia.');
+      setTimeout(() => {
+        api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}`)
+          .then(regs => { regs.forEach(r => { registros[r.exercicio_id] = r; }); renderTreino(); })
+          .catch(() => {});
+      }, 1000);
+    }
+  }
+}, 60000);
 </script>
 </body>
 </html>
