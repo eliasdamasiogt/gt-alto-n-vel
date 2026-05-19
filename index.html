@@ -1077,7 +1077,7 @@ async function init() {
     historico = hist30;
 
     // carrega recompensas, vídeos e notificações
-    loadRecompensas();
+    await loadRecompensas();
     loadNotificacoes();
     window._primeiroLoad = true; // bloqueia celebration durante carregamento inicial
     renderProfile();
@@ -2929,12 +2929,20 @@ const MARCOS = [
 // Recompensas salvas (localStorage: {marcoId: {prize, conquistado, notificado}})
 let recompensas = {};
 
-function loadRecompensas() {
-  // Carrega do alunoData (já vem do banco no init)
+async function loadRecompensas() {
+  // Busca recompensas diretamente do banco (campo pode não vir no select=*)
   try {
-    const raw = alunoData?.recompensas;
+    const res = await api(`alunos?id=eq.${alunoId}&select=recompensas`);
+    const raw = res?.[0]?.recompensas;
     recompensas = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
-  } catch(e) { recompensas = {}; }
+    if (alunoData) alunoData.recompensas = raw || null;
+  } catch(e) {
+    // fallback: tenta do alunoData
+    try {
+      const raw = alunoData?.recompensas;
+      recompensas = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+    } catch(e2) { recompensas = {}; }
+  }
 }
 
 async function saveRecompensas() {
