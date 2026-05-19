@@ -984,14 +984,15 @@ let checks = {};
 let expanded = {};
 let mState = {}; // metrônomo por exercício
 let audioCtx = null;
-// TODAY em horário de Brasília (UTC-3) para evitar bugs de fuso
-function getTodayBrasilia() {
+// TODAY no horário LOCAL do dispositivo (mais confiável que fixar fuso)
+function getTodayLocal() {
   const now = new Date();
-  // UTC-3 = subtrai 3 horas
-  const brasilia = new Date(now.getTime() - 3 * 60 * 60 * 1000);
-  return brasilia.toISOString().split('T')[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
-let TODAY = getTodayBrasilia();
+let TODAY = getTodayLocal();
 
 // ═══════════════════════════════════════════════════════════
 // INICIALIZAÇÃO — pega token da URL
@@ -3110,7 +3111,7 @@ window.addEventListener('load', init);
 
 // Verifica mudança de dia a cada minuto (para apps deixados abertos)
 setInterval(() => {
-  const novoToday = getTodayBrasilia();
+  const novoToday = getTodayLocal();
   if (novoToday !== TODAY) {
     TODAY = novoToday;
     // Recarrega o treino para o novo dia
