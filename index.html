@@ -1038,17 +1038,24 @@ async function init() {
     const isNewDay = lastDay && lastDay !== TODAY;
     if (isNewDay) {
       showToast('🌅 Novo dia, novo treino! Bora!');
-      // atualiza streak: verifica se treinou ontem
-      const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
-      const ontemStr = ontem.toISOString().split('T')[0];
-      try {
-        const treinouOntem = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${ontemStr}&concluido=eq.true&limit=1`);
-        const novoStreak = treinouOntem.length > 0 ? (alunoData?.streak||0) + 1 : 0;
-        await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:novoStreak}), prefer:'return=minimal'});
-        if (alunoData) alunoData.streak = novoStreak;
-      } catch(e) { console.warn('Erro ao atualizar streak:', e); }
     }
     localStorage.setItem('edh_last_day_' + alunoId, TODAY);
+
+    // atualiza streak sempre que abre (não só em dia novo)
+    // calcula streak real contando dias consecutivos com treino
+    try {
+      const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
+      const ontemStr = ontem.toISOString().split('T')[0];
+      const treinouOntem = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${ontemStr}&concluido=eq.true&limit=1`);
+      const treinouHoje = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}&concluido=eq.true&limit=1`);
+      let novoStreak = alunoData?.streak || 0;
+      if (isNewDay) {
+        // novo dia: soma se treinou ontem, zera se não
+        novoStreak = treinouOntem.length > 0 ? novoStreak + 1 : 0;
+        await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:novoStreak}), prefer:'return=minimal'});
+        if (alunoData) alunoData.streak = novoStreak;
+      }
+    } catch(e) { console.warn('Streak:', e); }
 
     // carrega registros de hoje
     setLoadingMsg('Verificando treino de hoje...');
@@ -1153,6 +1160,9 @@ function renderProfile() {
 
   // streak
   document.getElementById('streak-num').textContent = '🔥 ' + streak;
+
+  // treinos no mês e % conclusão — busca do banco
+  calcularStatsmes();
 
   // highlight nível atual
   document.querySelectorAll('.level-card').forEach((c,i) => {
@@ -2652,6 +2662,35 @@ async function checkFeedbackVideos() {
 
 
 
+
+async function calcularStatsmes() {
+  try {
+    // primeiro dia do mês atual
+    const now = new Date();
+    const primeiroDia = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+
+    // busca registros do mês com ao menos 1 exercício concluído
+    const regsMes = await api(
+      `registros_diarios?aluno_id=eq.${alunoId}&data=gte.${primeiroDia}&concluido=eq.true&select=data`
+    );
+
+    // conta dias únicos treinados
+    const diasUnicos = new Set(regsMes.map(r => r.data));
+    const totalTreinados = diasUnicos.size;
+
+    // dias passados no mês (incluindo hoje)
+    const diasPassados = now.getDate();
+
+    // % conclusão = dias treinados / dias passados
+    const pct = diasPassados > 0 ? Math.round((totalTreinados / diasPassados) * 100) : 0;
+
+    document.getElementById('treinos-mes').textContent = totalTreinados;
+    document.getElementById('conclusao-pct').textContent = pct + '%';
+  } catch(e) {
+    console.warn('Stats mês:', e);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
 // SISTEMA DE SENHA DO ALUNO
 // ═══════════════════════════════════════════════════════════
@@ -2810,12 +2849,22 @@ const MARCOS = [
 let recompensas = {};
 
 function loadRecompensas() {
-  const key = 'edh_recomp_' + alunoId;
-  try { recompensas = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e) { recompensas = {}; }
+  // Carrega do alunoData (já vem do banco no init)
+  try {
+    const raw = alunoData?.recompensas;
+    recompensas = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+  } catch(e) { recompensas = {}; }
 }
 
-function saveRecompensas() {
-  localStorage.setItem('edh_recomp_' + alunoId, JSON.stringify(recompensas));
+async function saveRecompensas() {
+  try {
+    await api(`alunos?id=eq.${alunoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({recompensas: JSON.stringify(recompensas)}),
+      prefer: 'return=minimal'
+    });
+    if (alunoData) alunoData.recompensas = JSON.stringify(recompensas);
+  } catch(e) { console.warn('Erro ao salvar recompensas:', e); }
 }
 
 function renderRecompensas() {
@@ -2853,11 +2902,11 @@ function toggleRecompEdit(id) {
   }
 }
 
-function salvarRecomp(id) {
+async function salvarRecomp(id) {
   const val = document.getElementById('riv-'+id)?.value.trim() || '';
   if (!recompensas[id]) recompensas[id] = {};
   recompensas[id].prize = val;
-  saveRecompensas();
+  await saveRecompensas();
   document.getElementById('ri-'+id)?.classList.remove('open');
   renderRecompensas();
   showToast('✅ Recompensa salva!');
@@ -2899,7 +2948,7 @@ async function verificarMarcos() {
     }
   }
 
-  saveRecompensas();
+  await saveRecompensas();
   renderRecompensas();
 
   if (novoConquistado) {
