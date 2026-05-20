@@ -1067,7 +1067,11 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   </div>
 
   <div class="streak-row">
-    <div class="streak-card"><div class="streak-num" id="streak-num">🔥 0</div><div class="streak-lbl">dias seguidos</div></div>
+    <div class="streak-card">
+      <div class="streak-num" id="streak-num">🔥 0</div>
+      <div class="streak-lbl">dias seguidos</div>
+      <div id="protecao-lbl" style="font-size:10px;color:var(--t3);margin-top:4px"></div>
+    </div>
     <div class="streak-card"><div class="streak-num" id="treinos-mes">0</div><div class="streak-lbl">treinos no mês</div></div>
     <div class="streak-card"><div class="streak-num" id="conclusao-pct">0%</div><div class="streak-lbl">conclusão</div></div>
   </div>
@@ -1082,8 +1086,7 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
       <div class="period-btn" onclick="setPeriod(30,this)">30 dias</div>
     </div>
     <div class="radar-wrap"><canvas id="radar"></canvas></div>
-    <div class="skills-list" id="skills-list"></div>
-    <div class="insight" id="insight"></div>
+
   </div>
 
   <!-- TEMA -->
@@ -1230,10 +1233,34 @@ async function init() {
       const treinouOntem = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${ontemStr}&concluido=eq.true&limit=1`);
       let novoStreak = alunoData?.streak || 0;
       if (isNewDay) {
-        // novo dia: soma se treinou ontem, zera se não
-        novoStreak = treinouOntem.length > 0 ? novoStreak + 1 : 0;
-        await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:novoStreak}), prefer:'return=minimal'});
-        if (alunoData) alunoData.streak = novoStreak;
+        if (treinouOntem.length > 0) {
+          // treinou ontem — incrementa streak
+          novoStreak = novoStreak + 1;
+          await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:novoStreak}), prefer:'return=minimal'});
+          if (alunoData) alunoData.streak = novoStreak;
+        } else {
+          // não treinou ontem — verifica proteção
+          const mesAtual = TODAY.slice(0,7); // "2026-05"
+          const protecaoKey = 'edh_protecao_' + alunoId + '_' + mesAtual;
+          const protecaoUsada = localStorage.getItem(protecaoKey) === '1';
+
+          if (!protecaoUsada && novoStreak >= 3) {
+            // usa proteção automaticamente (só protege se streak >= 3 dias)
+            localStorage.setItem(protecaoKey, '1');
+            // streak continua — não zera
+            showToast('🛡️ Proteção de streak usada! Seu streak foi mantido.');
+            addNotificacao('🛡️', 'Proteção de streak ativada!',
+              `Você não treinou ontem, mas sua proteção mensal salvou seu streak de ${novoStreak} dias.`);
+          } else {
+            // sem proteção ou streak pequeno — zera
+            novoStreak = 0;
+            await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:0}), prefer:'return=minimal'});
+            if (alunoData) alunoData.streak = 0;
+            if (novoStreak === 0 && (alunoData?.streak||0) > 3) {
+              showToast('💔 Streak zerado. Volte a treinar hoje!');
+            }
+          }
+        }
       }
     } catch(e) { console.warn('Streak:', e); }
 
@@ -1340,6 +1367,15 @@ function renderProfile() {
 
   // streak
   document.getElementById('streak-num').textContent = '🔥 ' + streak;
+  // status da proteção mensal
+  const mesAtual = TODAY.slice(0,7);
+  const protecaoKey = 'edh_protecao_' + alunoId + '_' + mesAtual;
+  const protecaoUsada = localStorage.getItem(protecaoKey) === '1';
+  const protecaoEl = document.getElementById('protecao-lbl');
+  if (protecaoEl) {
+    protecaoEl.textContent = protecaoUsada ? '🛡️ Proteção usada este mês' : '🛡️ Proteção disponível';
+    protecaoEl.style.color = protecaoUsada ? 'var(--re)' : 'var(--te)';
+  }
 
   // treinos no mês e % conclusão
   calcularStatsmes();
@@ -2371,8 +2407,7 @@ function setPeriod(p,btn){
   if(btn)btn.classList.add('active');
   const data=computeRadarData(p);
   rTargetVals=data.map(v=>v/100);
-  animateRadar();renderSkillList(data);renderInsight(data);
-}
+  animateRadar();renderSkillList(data);}
 
 function animateRadar(){
   cancelAnimationFrame(rAF);
