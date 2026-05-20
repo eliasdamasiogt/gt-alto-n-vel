@@ -614,6 +614,35 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 .senha-error{font-size:12px;color:var(--re);min-height:18px;margin-bottom:4px}
 .senha-nome{font-size:14px;font-weight:500;color:var(--t1);margin-bottom:4px}
 
+
+/* ══ POPUP DE REGISTRO ════════════════════════════════════ */
+.registro-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;display:none;align-items:flex-end;justify-content:center}
+.registro-overlay.open{display:flex}
+.registro-sheet{background:var(--bg1);border-radius:20px 20px 0 0;width:100%;max-width:780px;padding:24px 20px 32px;animation:slideUp .3s cubic-bezier(.4,0,.2,1)}
+.registro-title{font-size:16px;font-weight:500;color:var(--t1);margin-bottom:4px}
+.registro-ex{font-size:12px;color:var(--t2);margin-bottom:18px}
+.registro-diff-row{display:flex;gap:8px;margin-bottom:16px}
+.registro-diff-btn{flex:1;padding:10px 6px;border:1.5px solid var(--border2);border-radius:10px;font-size:13px;cursor:pointer;background:var(--bg2);color:var(--t2);text-align:center;transition:all .15s;font-weight:500}
+.registro-diff-btn:hover{background:var(--bg3)}
+.registro-diff-btn.s-f{background:var(--gr3);color:var(--grt);border-color:var(--te2)}
+.registro-diff-btn.s-m{background:var(--am3);color:var(--amt);border-color:var(--am)}
+.registro-diff-btn.s-d{background:var(--re3);color:var(--ret);border-color:var(--re)}
+.registro-ta{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:10px;font-size:13px;font-family:inherit;color:var(--t1);background:var(--bg2);resize:none;min-height:80px;line-height:1.5;margin-bottom:14px}
+.registro-ta:focus{outline:none;border-color:var(--pu)}
+.registro-ta::placeholder{color:var(--t3)}
+.registro-actions{display:flex;gap:8px}
+.registro-save-btn{flex:1;padding:11px;background:var(--pu2);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;transition:opacity .15s}
+.registro-save-btn:hover{opacity:.88}
+.registro-skip-btn{padding:11px 16px;border:1px solid var(--border2);border-radius:10px;background:transparent;color:var(--t2);font-size:13px;cursor:pointer}
+.registro-skip-btn:hover{background:var(--bg2)}
+.btn-registrar{font-size:11px;padding:4px 10px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--t3);cursor:pointer;transition:all .15s;margin-top:6px}
+.btn-registrar:hover{background:var(--bg2);color:var(--t2)}
+
+@media(min-width:860px){
+  .registro-overlay{align-items:center}
+  .registro-sheet{border-radius:16px;max-width:440px}
+}
+
 </style>
 </head>
 <body>
@@ -652,6 +681,24 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 </div>
 
 <div class="app" id="main-app" style="display:none">
+
+<!-- POPUP DE REGISTRO (dificuldade + anotação) -->
+<div class="registro-overlay" id="registro-overlay">
+  <div class="registro-sheet">
+    <div class="registro-title">Como foi o exercício?</div>
+    <div class="registro-ex" id="registro-ex-nome"></div>
+    <div class="registro-diff-row" id="registro-diff-row">
+      <div class="registro-diff-btn" data-d="facil" onclick="setRegistroDiff('facil',this)">😊 Fácil</div>
+      <div class="registro-diff-btn" data-d="medio" onclick="setRegistroDiff('medio',this)">😐 Médio</div>
+      <div class="registro-diff-btn" data-d="dificil" onclick="setRegistroDiff('dificil',this)">😤 Difícil</div>
+    </div>
+    <textarea class="registro-ta" id="registro-ta" placeholder="Anotações, percepções... (opcional)"></textarea>
+    <div class="registro-actions">
+      <button class="registro-save-btn" onclick="salvarRegistroPopup()">✓ Salvar</button>
+      <button class="registro-skip-btn" onclick="fecharRegistroPopup()">Pular</button>
+    </div>
+  </div>
+</div>
 
 <!-- POPUP DE MATERIAL -->
 <div class="material-overlay" id="material-overlay" onclick="fecharMaterial(event)">
@@ -1322,8 +1369,6 @@ function buildExCard(ex) {
       <div class="field-grid">
         <div class="field"><div class="fl">Duração</div><div class="fv">${durTotal} min</div></div>
         <div class="field"><div class="fl">Figura</div><div class="fv">${ex.figura_ritmica || '—'}</div></div>
-        <div class="field"><div class="fl">BPM inicial</div><div class="fv">${ex.bpm_inicial || '—'}</div></div>
-        <div class="field"><div class="fl">BPM alvo</div><div class="fv">${ex.bpm_alvo || '—'}</div></div>
       </div>
       <div class="bpm-editor">
         <div class="bpm-title">Seu BPM de hoje</div>
@@ -1397,14 +1442,12 @@ function buildExCard(ex) {
         <input class="video-input" id="vlink-${ex.id}" placeholder="Cole aqui o link do YouTube (não listado)...">
         <button class="video-send-btn" id="vsend-${ex.id}" onclick="enviarVideo('${ex.id}')">🎬 Enviar para avaliação</button>
       </div>
-      <div style="margin-top:10px;font-size:11px;color:var(--t2);font-weight:500">Como foi hoje?</div>
-      <div class="diff-row" id="diff-${ex.id}">
-        <div class="diff-btn${reg.dificuldade==='facil'?' s-f':''}" data-d="facil" onclick="setDiffEx('${ex.id}','facil',this)">Fácil</div>
-        <div class="diff-btn${reg.dificuldade==='medio'?' s-m':''}" data-d="medio" onclick="setDiffEx('${ex.id}','medio',this)">Médio</div>
-        <div class="diff-btn${reg.dificuldade==='dificil'?' s-d':''}" data-d="dificil" onclick="setDiffEx('${ex.id}','dificil',this)">Difícil</div>
-      </div>
-      <textarea class="note-ta" id="note-${ex.id}" placeholder="Anotações, percepções…">${reg.anotacao||''}</textarea>
-      <button class="save-note-btn" id="savebtn-${ex.id}" onclick="saveNota('${ex.id}')">💾 Salvar anotação</button>
+      ${reg.dificuldade ? `<div style="margin-top:8px;display:flex;align-items:center;gap:6px">
+        <span style="font-size:10px;color:var(--t3)">Último registro:</span>
+        <span class="pill ${ {'facil':'pill-te','medio':'pill-am','dificil':'pill-re'}[reg.dificuldade]||'pill-pu' }">${ {'facil':'😊 Fácil','medio':'😐 Médio','dificil':'😤 Difícil'}[reg.dificuldade]||'' }</span>
+        ${reg.anotacao ? `<span style="font-size:10px;color:var(--t2);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">"${reg.anotacao}"</span>` : ''}
+      </div>` : ''}
+      <button class="btn-registrar" onclick="abrirRegistroPopup('${ex.id}','${ex.nome.replace(/'/g,"\'").replace(/"/g,'\"')}')">📝 Registrar sessão</button>
       <div id="auto-bpm-badge-${ex.id}"></div>
     </div>
   </div>`;
@@ -1688,7 +1731,11 @@ function onMetroDoneEx(id){
   document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
   playDone(); resetTimerEx(id);
   saveRegistro(id, {bpm_hoje: m.bpm, compasso_num: m.beats, compasso_den: m.denom, acento: m.acento});
-  showToast('✅ Tempo concluído! Marque o exercício como feito ↑');
+  // Abre popup de registro automaticamente ao terminar o timer
+  const exObj = exercicios.find(e => e.id === id);
+  if (exObj) {
+    setTimeout(() => abrirRegistroPopup(id, exObj.nome), 400);
+  }
 }
 
 function toggleMetro(id){document.getElementById('metro-'+id)?.classList.toggle('open');}
@@ -2361,6 +2408,64 @@ function stopConf(){confRunning=false;if(confAF2)cancelAnimationFrame(confAF2);c
 
 
 
+
+
+// ═══════════════════════════════════════════════════════════
+// POPUP DE REGISTRO (dificuldade + anotação)
+// ═══════════════════════════════════════════════════════════
+let registroExId = null;
+let registroDiff = null;
+
+function abrirRegistroPopup(exId, nomeEx) {
+  registroExId = exId;
+  registroDiff = null;
+  // restaura estado salvo
+  const reg = registros[exId] || {};
+  document.getElementById('registro-ex-nome').textContent = nomeEx;
+  document.getElementById('registro-ta').value = reg.anotacao || '';
+  // restaura dificuldade se já tinha
+  document.querySelectorAll('.registro-diff-btn').forEach(b => {
+    b.className = 'registro-diff-btn';
+    if (reg.dificuldade && b.dataset.d === reg.dificuldade) {
+      const map = {facil:'s-f', medio:'s-m', dificil:'s-d'};
+      b.classList.add(map[reg.dificuldade]);
+      registroDiff = reg.dificuldade;
+    }
+  });
+  document.getElementById('registro-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function setRegistroDiff(d, btn) {
+  registroDiff = d;
+  document.querySelectorAll('.registro-diff-btn').forEach(b => b.className = 'registro-diff-btn');
+  const map = {facil:'s-f', medio:'s-m', dificil:'s-d'};
+  btn.classList.add(map[d]);
+}
+
+async function salvarRegistroPopup() {
+  if (!registroExId) return;
+  const anotacao = document.getElementById('registro-ta').value.trim();
+  const fields = {};
+  if (registroDiff) fields.dificuldade = registroDiff;
+  if (anotacao) fields.anotacao = anotacao;
+  if (Object.keys(fields).length > 0) {
+    await saveRegistro(registroExId, fields);
+    // atualiza visual do card
+    renderTreino();
+    // verifica ajuste automático se marcou dificuldade
+    if (registroDiff) setTimeout(() => verificarAjusteAutoBpm(registroExId), 1500);
+  }
+  fecharRegistroPopup();
+  showToast('✅ Sessão registrada!');
+}
+
+function fecharRegistroPopup() {
+  document.getElementById('registro-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  registroExId = null;
+  registroDiff = null;
+}
 
 // ═══════════════════════════════════════════════════════════
 // POPUP DE MATERIAL (iframe)

@@ -402,6 +402,19 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
 .notif-item-mentor.unread{background:var(--pu3)}
 .notif-item-mentor:last-child{border-bottom:none}
 
+
+/* ══ HISTÓRICO DE ANOTAÇÕES ══════════════════════════════ */
+.hist-btn{font-size:11px;padding:5px 11px;border:1px solid var(--border2);border-radius:7px;background:transparent;color:var(--t3);cursor:pointer;transition:all .15s;margin-top:8px}
+.hist-btn:hover{background:var(--bg2);color:var(--t2)}
+.hist-panel{display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px}
+.hist-panel.open{display:block}
+.hist-item{padding:8px 10px;background:var(--bg2);border-radius:8px;margin-bottom:6px;border:1px solid var(--border)}
+.hist-item-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;flex-wrap:wrap;gap:6px}
+.hist-item-date{font-size:10px;color:var(--t3);font-weight:500}
+.hist-item-ex{font-size:11px;font-weight:500}
+.hist-item-note{font-size:11px;color:var(--t2);font-style:italic;line-height:1.5;margin-top:3px}
+.hist-loading{font-size:11px;color:var(--t3);padding:8px 0;text-align:center}
+
 </style>
 </head>
 <body>
@@ -905,6 +918,10 @@ function renderAlunos() {
         </div>
         <div class="inner-sec active" id="is-${a.id}-notas">
           ${renderNotasHtml(a.id)}
+          <button class="hist-btn" onclick="toggleHistorico('${a.id}')">📋 Ver histórico de anotações</button>
+          <div class="hist-panel" id="hist-${a.id}">
+            <div class="hist-loading">Carregando...</div>
+          </div>
           <div class="action-row">
             <button class="btn" onclick="irParaMontar('${a.id}')">✏️ Editar treino</button>
             <button class="btn" onclick="redefinirSenha('${a.id}','${a.nome}')">🔑 Redefinir senha</button>
@@ -1710,6 +1727,64 @@ async function redefinirSenha(alunoId, nome) {
     });
     showToast(`🔑 Senha de ${nome} redefinida! Ele criará uma nova no próximo acesso.`);
   } catch(e) { showToast('⚠️ Erro: ' + e.message); }
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// HISTÓRICO DE ANOTAÇÕES
+// ═══════════════════════════════════════════════════════════
+async function toggleHistorico(alunoId) {
+  const panel = document.getElementById('hist-' + alunoId);
+  if (!panel) return;
+  panel.classList.toggle('open');
+  if (!panel.classList.contains('open')) return;
+
+  panel.innerHTML = '<div class="hist-loading">Carregando histórico...</div>';
+  try {
+    // busca últimos 30 registros com anotação ou dificuldade
+    const regs = await api(
+      `registros_diarios?aluno_id=eq.${alunoId}&or=(anotacao.not.is.null,dificuldade.not.is.null)&order=data.desc&limit=30&select=*`
+    );
+    if (!regs.length) {
+      panel.innerHTML = '<div class="hist-loading">Nenhuma anotação registrada ainda.</div>';
+      return;
+    }
+    const diffLabel = {facil:'😊 Fácil', medio:'😐 Médio', dificil:'😤 Difícil'};
+    const diffPill  = {facil:'pill-green', medio:'pill-amber', dificil:'pill-red'};
+    const catColor  = {'Técnica':'#8b7ff5','Percepção':'#f0a832','Harmonia':'#38bdf8','Improviso':'#22c78a','Repertório':'#e05555','Frases e Licks':'#f472b6'};
+
+    // agrupa por data
+    const porData = {};
+    regs.forEach(r => {
+      if (!porData[r.data]) porData[r.data] = [];
+      porData[r.data].push(r);
+    });
+
+    panel.innerHTML = Object.entries(porData).map(([data, items]) => {
+      const dataFmt = new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', {weekday:'short', day:'2-digit', month:'short'});
+      const itens = items.map(r => {
+        const ex = allExercicios.find(e => e.id === r.exercicio_id);
+        const nomeEx = ex?.nome || 'Exercício';
+        const cor = ex ? (catColor[ex.categoria] || '#8b7ff5') : '#8b7ff5';
+        return `
+        <div class="hist-item">
+          <div class="hist-item-head">
+            <span class="hist-item-ex" style="color:${cor}">${nomeEx}</span>
+            ${r.dificuldade ? `<span class="pill ${diffPill[r.dificuldade]}">${diffLabel[r.dificuldade]}</span>` : ''}
+          </div>
+          ${r.bpm_hoje ? `<div style="font-size:10px;color:var(--t3)">BPM: ${r.bpm_hoje}</div>` : ''}
+          ${r.anotacao ? `<div class="hist-item-note">"${r.anotacao}"</div>` : ''}
+        </div>`;
+      }).join('');
+      return `
+      <div style="margin-bottom:12px">
+        <div class="hist-item-date" style="margin-bottom:6px;text-transform:capitalize">${dataFmt}</div>
+        ${itens}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    panel.innerHTML = '<div class="hist-loading">Erro ao carregar histórico.</div>';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
