@@ -645,57 +645,54 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 
 
 /* ══ PULSO DO METRÔNOMO NO CARD ══════════════════════════ */
-.ex-card { position: relative; }
-.ex-card::before {
-  content:'';
-  position:absolute;
-  top:0; left:12px; right:12px;
-  height:1.5px;
-  border-radius:1px;
-  background:transparent;
-  pointer-events:none;
-  z-index:1;
-}
-.ex-card.metro-pulsing::before {
-  animation: card-line-pulse var(--beat-ms, 500ms) ease-in-out infinite;
-}
-.ex-card.metro-pulsing {
-  animation: card-glow-pulse var(--beat-ms, 500ms) ease-in-out infinite;
-}
-.ex-card.metro-accent::before {
-  background: linear-gradient(90deg, transparent, #f0a832, transparent) !important;
-}
-.ex-card.metro-accent {
-  --pulse-color: rgba(240,168,50,.55);
-}
+.ex-card { position: relative; transition: box-shadow .05s ease; }
 
-@keyframes card-glow-pulse {
-  0%   { box-shadow: 0 0 0 0 var(--pulse-color, rgba(139,127,245,.5)); }
-  35%  { box-shadow: 0 0 18px 3px var(--pulse-color, rgba(139,127,245,.5)), inset 0 0 10px 0 color-mix(in srgb, var(--pulse-color, rgba(139,127,245,.5)) 12%, transparent); }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-@keyframes card-line-pulse {
-  0%   { opacity:0; transform:scaleX(.5); }
-  35%  { opacity:1; transform:scaleX(1); }
-  100% { opacity:0; transform:scaleX(.7); }
+/* linha néon no topo */
+.ex-card-pulse-line {
+  position:absolute;
+  top:0; left:10%; right:10%;
+  height:2px;
+  border-radius:1px;
+  pointer-events:none;
+  z-index:3;
+  opacity:0;
+  transform:scaleX(.4);
+  transition:none;
 }
 
 /* ponto indicador de ativo */
 .metro-active-dot {
   position:absolute;
-  top:9px; right:9px;
-  width:6px; height:6px;
+  top:10px; right:46px;
+  width:7px; height:7px;
   border-radius:50%;
-  background: var(--cat-color, #8b7ff5);
-  box-shadow: 0 0 7px var(--cat-color, #8b7ff5);
   display:none;
   pointer-events:none;
-  z-index:2;
+  z-index:3;
+  transition: background .05s, box-shadow .05s;
 }
 .ex-card.metro-pulsing .metro-active-dot { display:block; }
-.ex-card.metro-accent .metro-active-dot {
-  background: #f0a832;
-  box-shadow: 0 0 10px #f0a832;
+
+/* botão play rápido no card */
+.card-play-btn {
+  width:32px; height:32px;
+  border-radius:50%;
+  border:1.5px solid var(--border2);
+  background:var(--bg2);
+  color:var(--t2);
+  font-size:12px;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  transition:all .15s;
+}
+.card-play-btn:hover { background:var(--bg3); color:var(--t1); }
+.card-play-btn.playing {
+  border-color: var(--re);
+  color: var(--ret);
+  background: var(--re3);
 }
 
 </style>
@@ -1401,8 +1398,10 @@ function buildExCard(ex) {
 
   return `
   <div class="ex-card" id="ex-${ex.id}">
+    <div class="ex-card-pulse-line" id="pulse-line-${ex.id}"></div>
     <div class="metro-active-dot" id="metro-dot-${ex.id}"></div>
-    <div class="ex-head" onclick="toggleEx('${ex.id}')">
+    <div class="ex-head">
+      <div style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0" onclick="toggleEx('${ex.id}')">
       <div class="ex-check" id="chk-${ex.id}" onclick="event.stopPropagation();toggleCheck('${ex.id}')">✓</div>
       <div class="ex-info">
         <div class="ex-name">${ex.nome}</div>
@@ -1413,6 +1412,8 @@ function buildExCard(ex) {
           ${ex.figura_ritmica ? `<span class="mp">${ex.figura_ritmica}</span>` : ''}
         </div>
       </div>
+      </div><!-- ex-head-inner -->
+      <button class="card-play-btn" id="card-play-${ex.id}" onclick="event.stopPropagation();toggleCardPlay('${ex.id}')" title="Iniciar metrônomo">▶</button>
       <div class="circ-wrap">
         <svg class="circ-svg" width="46" height="46" viewBox="0 0 46 46">
           <circle class="circ-bg" cx="23" cy="23" r="19"/>
@@ -1726,42 +1727,86 @@ const catColorsNeon = {
   'Repertório':     '#f87171',
   'Frases e Licks': '#f472b6',
 };
+const pulseTimers = {};
 
 function pulseCard(exId, isAccent) {
   const card = document.getElementById('ex-' + exId);
+  const line = document.getElementById('pulse-line-' + exId);
+  const dot  = document.getElementById('metro-dot-' + exId);
   if (!card) return;
+
   const ex = exercicios.find(e => e.id === exId);
-  const cor = catColorsNeon[ex?.categoria] || '#8b7ff5';
-  const beatMs = Math.round((60 / (mState[exId]?.bpm || 60)) * 1000);
+  const cor = isAccent ? '#f0a832' : (catColorsNeon[ex?.categoria] || '#8b7ff5');
+  const glowColor = isAccent ? 'rgba(240,168,50,.55)' : `${cor}88`;
 
-  // define cor e duração via CSS vars
-  card.style.setProperty('--pulse-color', isAccent
-    ? 'rgba(240,168,50,.6)'
-    : `color-mix(in srgb, ${cor} 55%, transparent)`);
-  card.style.setProperty('--cat-color', cor);
-  card.style.setProperty('--beat-ms', beatMs + 'ms');
-
-  // linha de topo — cor da categoria ou laranja no acento
-  card.style.setProperty('--line-color', isAccent ? '#f0a832' : cor);
-
-  // troca classe de acento
-  card.classList.toggle('metro-accent', isAccent);
+  // Glow na borda do card
   card.classList.add('metro-pulsing');
+  card.style.boxShadow = `0 0 0 1.5px ${cor}, 0 0 20px 2px ${glowColor}`;
+  card.style.borderColor = cor;
 
-  // atualiza cor da linha via before content (usa filter no before)
-  const dot = document.getElementById('metro-dot-' + exId);
-  if (dot) {
-    dot.style.background = isAccent ? '#f0a832' : cor;
-    dot.style.boxShadow = `0 0 8px ${isAccent ? '#f0a832' : cor}`;
+  // Linha néon no topo
+  if (line) {
+    line.style.background = `linear-gradient(90deg, transparent, ${cor}, transparent)`;
+    line.style.opacity = '1';
+    line.style.transform = 'scaleX(1)';
+    line.style.transition = 'none';
   }
+
+  // Ponto indicador
+  if (dot) {
+    dot.style.background = cor;
+    dot.style.boxShadow = `0 0 10px ${cor}, 0 0 4px #fff`;
+  }
+
+  // Fade out suave após 60% do beat
+  const beatMs = Math.round((60 / (mState[exId]?.bpm || 60)) * 1000);
+  clearTimeout(pulseTimers[exId]);
+  pulseTimers[exId] = setTimeout(() => {
+    card.style.boxShadow = `0 0 0 1px ${cor}44`;
+    card.style.borderColor = `${cor}66`;
+    if (line) {
+      line.style.transition = `opacity ${beatMs * 0.4}ms ease, transform ${beatMs * 0.4}ms ease`;
+      line.style.opacity = '0';
+      line.style.transform = 'scaleX(0.3)';
+    }
+  }, beatMs * 0.35);
 }
 
 function stopCardPulse(exId) {
   const card = document.getElementById('ex-' + exId);
-  if (!card) return;
-  card.classList.remove('metro-pulsing', 'metro-accent');
-  card.style.removeProperty('--pulse-color');
-  card.style.removeProperty('--beat-ms');
+  const line = document.getElementById('pulse-line-' + exId);
+  const dot  = document.getElementById('metro-dot-' + exId);
+  clearTimeout(pulseTimers[exId]);
+  if (card) {
+    card.classList.remove('metro-pulsing');
+    card.style.boxShadow = '';
+    card.style.borderColor = '';
+  }
+  if (line) { line.style.opacity = '0'; line.style.background = ''; }
+  if (dot)  { dot.style.background = ''; dot.style.boxShadow = ''; }
+}
+
+// ── BOTÃO PLAY RÁPIDO NO CARD ─────────────────────────────
+function toggleCardPlay(exId) {
+  const m = mState[exId];
+  if (!m) return;
+  const btn = document.getElementById('card-play-' + exId);
+
+  if (m.playing) {
+    // para
+    toggleMPlayEx(exId);
+    if (btn) { btn.textContent = '▶'; btn.classList.remove('playing'); }
+  } else {
+    // inicia — abre metrônomo se fechado
+    const metro = document.getElementById('metro-' + exId);
+    if (metro && !metro.classList.contains('open')) {
+      metro.classList.add('open');
+      // expande o card se necessário
+      if (!expanded[exId]) toggleEx(exId);
+    }
+    toggleMPlayEx(exId);
+    if (btn) { btn.textContent = '⏹'; btn.classList.add('playing'); }
+  }
 }
 
 function scheduleMetroEx(id) {
@@ -1817,6 +1862,9 @@ function toggleMPlayEx(id){
   if(m.playing){
     btn.textContent='⏹';btn.classList.add('playing');
     scheduleMetroEx(id);startTimerEx(id);
+    // sincroniza botão do card
+    const cardBtn = document.getElementById('card-play-'+id);
+    if(cardBtn){cardBtn.textContent='⏹';cardBtn.classList.add('playing');}
   } else {
     clearInterval(m.metroIntv);stopTimerEx(id);
     btn.textContent='▶';btn.classList.remove('playing');
@@ -1824,6 +1872,9 @@ function toggleMPlayEx(id){
     if(rod){rod.style.transition='transform .4s ease';rod.style.transform='translateX(-50%) rotate(0deg)';}
     document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
     stopCardPulse(id);
+    // sincroniza botão do card
+    const cardBtn = document.getElementById('card-play-'+id);
+    if(cardBtn){cardBtn.textContent='▶';cardBtn.classList.remove('playing');}
   }
 }
 
@@ -1832,6 +1883,8 @@ function onMetroDoneEx(id){
   clearInterval(m.metroIntv); m.playing=false;
   const btn=document.getElementById('mplay-'+id);
   if(btn){btn.textContent='▶';btn.classList.remove('playing');}
+  const cardBtn=document.getElementById('card-play-'+id);
+  if(cardBtn){cardBtn.textContent='▶';cardBtn.classList.remove('playing');}
   const rod=document.getElementById('pend-'+id);
   if(rod){rod.style.transition='transform .4s ease';rod.style.transform='translateX(-50%) rotate(0deg)';}
   document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
