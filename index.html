@@ -276,7 +276,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg0);min-he
 .period-btn:hover{background:var(--bg3);color:var(--t1)}
 .period-btn.active{background:var(--pu3);color:var(--put);border-color:var(--pu)}
 .radar-wrap{display:flex;justify-content:center;margin-bottom:14px}
-.skills-list{display:flex;flex-direction:column;gap:7px;margin-bottom:12px}
+
 .skill-row{display:flex;align-items:center;gap:9px}
 .skill-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
 .skill-name-lbl{font-size:12px;color:var(--t2);width:90px;flex-shrink:0}
@@ -285,8 +285,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg0);min-he
 .skill-pct-lbl{font-size:11px;color:var(--t1);width:28px;text-align:right;flex-shrink:0}
 .skill-delta{font-size:10px;width:28px;text-align:right;flex-shrink:0}
 .du{color:var(--te)}.dd{color:var(--re)}.dq{color:var(--t3)}
-.insight{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;font-size:11px;color:var(--t2);line-height:1.65}
-.insight strong{color:var(--t1)}
+
+
 
 /* CELEBRATION */
 .celebration{position:fixed;inset:0;background:rgba(13,13,17,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .4s}
@@ -2407,7 +2407,7 @@ function setPeriod(p,btn){
   if(btn)btn.classList.add('active');
   const data=computeRadarData(p);
   rTargetVals=data.map(v=>v/100);
-  animateRadar();renderSkillList(data);}
+  animateRadar();}
 
 function animateRadar(){
   cancelAnimationFrame(rAF);
@@ -2439,7 +2439,6 @@ function drawRadar(vals){
 }
 
 function renderSkillList(data){
-  document.getElementById('skills-list').innerHTML=radarSkills.map((s,i)=>{
     const v=data[i]||0;
     return `<div class="skill-row"><div class="skill-dot" style="background:${s.color};box-shadow:0 0 5px ${s.color}80"></div><div class="skill-name-lbl">${s.icon} ${s.name}</div><div class="skill-bar-wrap"><div class="skill-bar-fill" style="width:${v}%;background:${s.color}"></div></div><div class="skill-pct-lbl">${v}%</div></div>`;
   }).join('');
@@ -2447,7 +2446,6 @@ function renderSkillList(data){
 
 function renderInsight(data){
   const mx=data.indexOf(Math.max(...data)),mn=data.indexOf(Math.min(...data));
-  document.getElementById('insight').innerHTML=data[mx]===0
     ? `📊 Ainda sem dados suficientes para os últimos <strong>${rPeriod} Dias</strong>. Continue treinando e registrando seu progresso!`
     : `📊 Nos últimos <strong>${rPeriod} Dias</strong>, você treinou mais <strong style="color:${radarSkills[mx].color}">${radarSkills[mx].name}</strong> (${data[mx]}%). Menor foco em <strong style="color:${radarSkills[mn].color}">${radarSkills[mn].name}</strong> (${data[mn]}%) — considere reservar mais tempo pra essa área.`;
 }
