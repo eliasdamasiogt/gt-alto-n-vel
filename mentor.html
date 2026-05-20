@@ -563,6 +563,16 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
               <option>Tercina</option>
             </select>
           </div>
+          <div class="form-group"><label class="form-label">Compasso</label>
+            <select class="form-input" id="ex-comp">
+              <option value="4/4">4/4</option>
+              <option value="3/4">3/4</option>
+              <option value="6/8">6/8</option>
+              <option value="2/4">2/4</option>
+              <option value="5/4">5/4</option>
+              <option value="7/8">7/8</option>
+            </select>
+          </div>
           <div class="form-group" style="flex:2"><label class="form-label">Link (tab, vídeo, backing)</label><input class="form-input" id="ex-link" placeholder="https://"></div>
         </div>
         <div style="display:flex;gap:7px">
@@ -1276,10 +1286,14 @@ async function addExercicio(){
   const link=document.getElementById('ex-link').value.trim();
   if(!nome){showToast('⚠️ Preencha o nome do exercício.');return;}
   try{
+    const compStr = document.getElementById('ex-comp')?.value || '4/4';
+    const compParts = compStr.split('/');
+    const compNum = parseInt(compParts[0]) || 4;
+    const compDen = parseInt(compParts[1]) || 4;
     const res=await api('exercicios',{method:'POST',body:JSON.stringify({
       aluno_id:selectedAlunoId,nome,categoria:cat,duracao_min:dur,
       bpm_inicial:bpmI,bpm_alvo:bpmA,figura_ritmica:fig,
-      link_arquivo:link||null,compasso_num:4,compasso_den:4,acento:true,tipo:'fixo',
+      link_arquivo:link||null,compasso_num:compNum,compasso_den:compDen,acento:true,tipo:'fixo',
       ordem:editorExercicios.length+1,ativo:true
     })});
     editorExercicios.push(res[0]);
@@ -1855,6 +1869,10 @@ function abrirEditarEx(id){
         <select class="form-input" id="ee-fig-${id}">
           ${figs.map(f=>`<option${f===ex.figura_ritmica?' selected':''}>${f}</option>`).join('')}
         </select></div>
+      <div class="form-group"><label class="form-label">Compasso</label>
+        <select class="form-input" id="ee-comp-${id}">
+          ${comps.map(c=>`<option${c===compAtual?' selected':''}>${c}</option>`).join('')}
+        </select></div>
       <div class="form-group" style="flex:2"><label class="form-label">Link</label>
         <input class="form-input" id="ee-link-${id}" value="${ex.link_arquivo||''}"></div>
     </div>
@@ -1866,6 +1884,8 @@ function abrirEditarEx(id){
 }
 
 async function salvarEditarEx(id){
+  const eeCompStr = document.getElementById('ee-comp-'+id)?.value || '4/4';
+  const eeCompP = eeCompStr.split('/');
   const payload = {
     nome:           document.getElementById('ee-nome-'+id)?.value.trim(),
     duracao_min:    parseInt(document.getElementById('ee-dur-'+id)?.value)||10,
@@ -1874,6 +1894,8 @@ async function salvarEditarEx(id){
     categoria:      document.getElementById('ee-cat-'+id)?.value,
     figura_ritmica: document.getElementById('ee-fig-'+id)?.value,
     link_arquivo:   document.getElementById('ee-link-'+id)?.value.trim()||null,
+    compasso_num:   parseInt(eeCompP[0])||4,
+    compasso_den:   parseInt(eeCompP[1])||4,
   };
   if(!payload.nome){ showToast('⚠️ Preencha o nome.'); return; }
   try{

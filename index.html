@@ -643,6 +643,61 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   .registro-sheet{border-radius:16px;max-width:440px}
 }
 
+
+/* ══ PULSO DO METRÔNOMO NO CARD ══════════════════════════ */
+.ex-card { position: relative; }
+.ex-card::before {
+  content:'';
+  position:absolute;
+  top:0; left:12px; right:12px;
+  height:1.5px;
+  border-radius:1px;
+  background:transparent;
+  pointer-events:none;
+  z-index:1;
+}
+.ex-card.metro-pulsing::before {
+  animation: card-line-pulse var(--beat-ms, 500ms) ease-in-out infinite;
+}
+.ex-card.metro-pulsing {
+  animation: card-glow-pulse var(--beat-ms, 500ms) ease-in-out infinite;
+}
+.ex-card.metro-accent::before {
+  background: linear-gradient(90deg, transparent, #f0a832, transparent) !important;
+}
+.ex-card.metro-accent {
+  --pulse-color: rgba(240,168,50,.55);
+}
+
+@keyframes card-glow-pulse {
+  0%   { box-shadow: 0 0 0 0 var(--pulse-color, rgba(139,127,245,.5)); }
+  35%  { box-shadow: 0 0 18px 3px var(--pulse-color, rgba(139,127,245,.5)), inset 0 0 10px 0 color-mix(in srgb, var(--pulse-color, rgba(139,127,245,.5)) 12%, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes card-line-pulse {
+  0%   { opacity:0; transform:scaleX(.5); }
+  35%  { opacity:1; transform:scaleX(1); }
+  100% { opacity:0; transform:scaleX(.7); }
+}
+
+/* ponto indicador de ativo */
+.metro-active-dot {
+  position:absolute;
+  top:9px; right:9px;
+  width:6px; height:6px;
+  border-radius:50%;
+  background: var(--cat-color, #8b7ff5);
+  box-shadow: 0 0 7px var(--cat-color, #8b7ff5);
+  display:none;
+  pointer-events:none;
+  z-index:2;
+}
+.ex-card.metro-pulsing .metro-active-dot { display:block; }
+.ex-card.metro-accent .metro-active-dot {
+  background: #f0a832;
+  box-shadow: 0 0 10px #f0a832;
+}
+
 </style>
 </head>
 <body>
@@ -1346,6 +1401,7 @@ function buildExCard(ex) {
 
   return `
   <div class="ex-card" id="ex-${ex.id}">
+    <div class="metro-active-dot" id="metro-dot-${ex.id}"></div>
     <div class="ex-head" onclick="toggleEx('${ex.id}')">
       <div class="ex-check" id="chk-${ex.id}" onclick="event.stopPropagation();toggleCheck('${ex.id}')">✓</div>
       <div class="ex-info">
@@ -1656,7 +1712,56 @@ function metroTick(id) {
   }
   const vol=parseFloat(document.getElementById('vol-'+id)?.value||0.7);
   playClick(isAc,vol);
+  // pulsa o card no ritmo
+  pulseCard(id, isAc);
   m.beat=(m.beat+1)%m.beats;
+}
+
+// ── PULSO VISUAL NO CARD ─────────────────────────────────
+const catColorsNeon = {
+  'Técnica':        '#a78bfa',
+  'Percepção':      '#fbbf24',
+  'Harmonia':       '#38bdf8',
+  'Improviso':      '#34d399',
+  'Repertório':     '#f87171',
+  'Frases e Licks': '#f472b6',
+};
+
+function pulseCard(exId, isAccent) {
+  const card = document.getElementById('ex-' + exId);
+  if (!card) return;
+  const ex = exercicios.find(e => e.id === exId);
+  const cor = catColorsNeon[ex?.categoria] || '#8b7ff5';
+  const beatMs = Math.round((60 / (mState[exId]?.bpm || 60)) * 1000);
+
+  // define cor e duração via CSS vars
+  card.style.setProperty('--pulse-color', isAccent
+    ? 'rgba(240,168,50,.6)'
+    : `color-mix(in srgb, ${cor} 55%, transparent)`);
+  card.style.setProperty('--cat-color', cor);
+  card.style.setProperty('--beat-ms', beatMs + 'ms');
+
+  // linha de topo — cor da categoria ou laranja no acento
+  card.style.setProperty('--line-color', isAccent ? '#f0a832' : cor);
+
+  // troca classe de acento
+  card.classList.toggle('metro-accent', isAccent);
+  card.classList.add('metro-pulsing');
+
+  // atualiza cor da linha via before content (usa filter no before)
+  const dot = document.getElementById('metro-dot-' + exId);
+  if (dot) {
+    dot.style.background = isAccent ? '#f0a832' : cor;
+    dot.style.boxShadow = `0 0 8px ${isAccent ? '#f0a832' : cor}`;
+  }
+}
+
+function stopCardPulse(exId) {
+  const card = document.getElementById('ex-' + exId);
+  if (!card) return;
+  card.classList.remove('metro-pulsing', 'metro-accent');
+  card.style.removeProperty('--pulse-color');
+  card.style.removeProperty('--beat-ms');
 }
 
 function scheduleMetroEx(id) {
@@ -1718,6 +1823,7 @@ function toggleMPlayEx(id){
     const rod=document.getElementById('pend-'+id);
     if(rod){rod.style.transition='transform .4s ease';rod.style.transform='translateX(-50%) rotate(0deg)';}
     document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
+    stopCardPulse(id);
   }
 }
 
@@ -1729,6 +1835,7 @@ function onMetroDoneEx(id){
   const rod=document.getElementById('pend-'+id);
   if(rod){rod.style.transition='transform .4s ease';rod.style.transform='translateX(-50%) rotate(0deg)';}
   document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
+  stopCardPulse(id);
   playDone(); resetTimerEx(id);
   saveRegistro(id, {bpm_hoje: m.bpm, compasso_num: m.beats, compasso_den: m.denom, acento: m.acento});
   // Abre popup de registro automaticamente ao terminar o timer
