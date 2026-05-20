@@ -695,6 +695,66 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   background: var(--re3);
 }
 
+
+/* ══ MINI TIMER CIRCULAR ══════════════════════════════════ */
+.mini-timer {
+  position: fixed;
+  bottom: 24px;
+  right: 20px;
+  width: 64px;
+  cursor: pointer;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 500;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,.5));
+  transition: transform .15s;
+}
+.mini-timer:hover { transform: scale(1.08); }
+.mini-timer.show { display: flex; }
+
+.mini-timer-svg { position: relative; }
+.mini-timer-bg {
+  fill: var(--bg1);
+  stroke: var(--border2);
+  stroke-width: 3;
+}
+.mini-timer-fill {
+  fill: none;
+  stroke: var(--pu);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dashoffset .8s linear, stroke .3s;
+}
+.mini-timer-fill.ending { stroke: var(--am); }
+
+.mini-timer-content {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.mini-timer-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--t1);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.3px;
+}
+
+.mini-timer-label {
+  font-size: 9px;
+  color: var(--t2);
+  text-align: center;
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
 </style>
 </head>
 <body>
@@ -777,7 +837,21 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   </div>
 </div>
 
-<!-- TIMER FLUTUANTE -->
+<!-- MINI TIMER CIRCULAR -->
+<div class="mini-timer" id="mini-timer" onclick="miniTimerClick()">
+  <svg class="mini-timer-svg" viewBox="0 0 56 56" width="56" height="56">
+    <circle class="mini-timer-bg" cx="28" cy="28" r="24"/>
+    <circle class="mini-timer-fill" id="mini-timer-arc" cx="28" cy="28" r="24"
+      stroke-dasharray="150.8" stroke-dashoffset="0"
+      transform="rotate(-90 28 28)"/>
+  </svg>
+  <div class="mini-timer-content">
+    <div class="mini-timer-time" id="mini-timer-time">--:--</div>
+  </div>
+  <div class="mini-timer-label" id="mini-timer-label">Exercício</div>
+</div>
+
+<!-- TIMER FLUTUANTE (material) -->
 <div class="float-timer" id="float-timer">
   <div>
     <div class="float-timer-time" id="float-timer-time">--:--</div>
@@ -1787,26 +1861,84 @@ function stopCardPulse(exId) {
 }
 
 // ── BOTÃO PLAY RÁPIDO NO CARD ─────────────────────────────
+let miniTimerExId = null;
+let miniTimerRAF2 = null;
+
 function toggleCardPlay(exId) {
   const m = mState[exId];
   if (!m) return;
   const btn = document.getElementById('card-play-' + exId);
 
   if (m.playing) {
-    // para
+    // para metrônomo
     toggleMPlayEx(exId);
     if (btn) { btn.textContent = '▶'; btn.classList.remove('playing'); }
+    esconderMiniTimer();
   } else {
-    // inicia — abre metrônomo se fechado
-    const metro = document.getElementById('metro-' + exId);
-    if (metro && !metro.classList.contains('open')) {
-      metro.classList.add('open');
-      // expande o card se necessário
-      if (!expanded[exId]) toggleEx(exId);
-    }
-    toggleMPlayEx(exId);
+    // inicia sem abrir o card
+    m.playing = true;
+    const playBtn = document.getElementById('mplay-' + exId);
+    if (playBtn) { playBtn.textContent = '⏹'; playBtn.classList.add('playing'); }
+    scheduleMetroEx(exId);
+    startTimerEx(exId);
     if (btn) { btn.textContent = '⏹'; btn.classList.add('playing'); }
+    mostrarMiniTimer(exId);
   }
+}
+
+function miniTimerClick() {
+  // clique no mini-timer para o metrônomo
+  if (miniTimerExId) toggleCardPlay(miniTimerExId);
+}
+
+function mostrarMiniTimer(exId) {
+  const ex = exercicios.find(e => e.id === exId);
+  if (!ex) return;
+  miniTimerExId = exId;
+
+  const mt = document.getElementById('mini-timer');
+  const label = document.getElementById('mini-timer-label');
+  if (!mt) return;
+
+  // Trunca nome para caber no label
+  const nome = ex.nome.length > 18 ? ex.nome.slice(0,16) + '…' : ex.nome;
+  if (label) label.textContent = nome;
+
+  mt.classList.add('show');
+  cancelAnimationFrame(miniTimerRAF2);
+  animarMiniTimer(exId);
+}
+
+function animarMiniTimer(exId) {
+  const m = mState[exId];
+  if (!m || !m.playing) { esconderMiniTimer(); return; }
+
+  const elapsed = m.elapsedMs + (Date.now() - m.startTs);
+  const rem = Math.max(0, m.totalMs - elapsed);
+  const pct = rem / m.totalMs;
+
+  // atualiza texto
+  const s = Math.ceil(rem / 1000);
+  const mm = Math.floor(s / 60), ss = s % 60;
+  const timeEl = document.getElementById('mini-timer-time');
+  if (timeEl) timeEl.textContent = String(mm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+
+  // atualiza arco SVG — 150.8 = circunferência (2π × 24)
+  const arc = document.getElementById('mini-timer-arc');
+  if (arc) {
+    const offset = 150.8 * (1 - pct);
+    arc.style.strokeDashoffset = offset;
+    arc.classList.toggle('ending', rem < 30000);
+  }
+
+  if (rem <= 0) { esconderMiniTimer(); return; }
+  miniTimerRAF2 = requestAnimationFrame(() => animarMiniTimer(exId));
+}
+
+function esconderMiniTimer() {
+  cancelAnimationFrame(miniTimerRAF2);
+  document.getElementById('mini-timer')?.classList.remove('show');
+  miniTimerExId = null;
 }
 
 function scheduleMetroEx(id) {
@@ -1875,6 +2007,7 @@ function toggleMPlayEx(id){
     // sincroniza botão do card
     const cardBtn = document.getElementById('card-play-'+id);
     if(cardBtn){cardBtn.textContent='▶';cardBtn.classList.remove('playing');}
+    if (!expanded[id]) esconderMiniTimer();
   }
 }
 
@@ -1885,6 +2018,8 @@ function onMetroDoneEx(id){
   if(btn){btn.textContent='▶';btn.classList.remove('playing');}
   const cardBtn=document.getElementById('card-play-'+id);
   if(cardBtn){cardBtn.textContent='▶';cardBtn.classList.remove('playing');}
+  // esconde mini-timer se card fechado
+  if (!expanded[id]) esconderMiniTimer();
   const rod=document.getElementById('pend-'+id);
   if(rod){rod.style.transition='transform .4s ease';rod.style.transform='translateX(-50%) rotate(0deg)';}
   document.querySelectorAll(`[id^="bd-${id}_"]`).forEach(d=>d.classList.remove('active-normal','active-accent'));
@@ -3041,6 +3176,22 @@ async function calcularStatsmes() {
 // ═══════════════════════════════════════════════════════════
 
 async function verificarSenha() {
+  // Verifica sessão salva — válida por 7 dias
+  const sessaoKey = 'edh_sessao_' + alunoId;
+  const sessaoSalva = localStorage.getItem(sessaoKey);
+  if (sessaoSalva) {
+    try {
+      const { expira } = JSON.parse(sessaoSalva);
+      if (expira && Date.now() < expira) {
+        // sessão ainda válida — entra direto
+        liberarApp();
+        return;
+      }
+    } catch(e) {}
+    // sessão expirada — remove
+    localStorage.removeItem(sessaoKey);
+  }
+
   // Esconde loading antes de mostrar tela de senha
   document.getElementById('loading').classList.add('hidden');
   try {
@@ -3114,6 +3265,11 @@ async function confirmarSenha() {
         body: JSON.stringify({senha_hash: hash}),
         prefer: 'return=minimal'
       });
+      // salva sessão por 7 dias
+      const sessaoKey = 'edh_sessao_' + alunoId;
+      localStorage.setItem(sessaoKey, JSON.stringify({
+        expira: Date.now() + 7 * 24 * 60 * 60 * 1000
+      }));
       liberarApp();
       showToast('✅ Senha criada com sucesso!');
     } else {
@@ -3122,6 +3278,11 @@ async function confirmarSenha() {
       const hashSalvo = res?.[0]?.senha_hash;
       const hashDigitado = btoa(input1 + alunoId);
       if (hashSalvo === hashDigitado) {
+        // salva sessão por 7 dias
+        const sessaoKey = 'edh_sessao_' + alunoId;
+        localStorage.setItem(sessaoKey, JSON.stringify({
+          expira: Date.now() + 7 * 24 * 60 * 60 * 1000
+        }));
         liberarApp();
       } else {
         errorEl.textContent = 'Senha incorreta. Tente novamente.';
