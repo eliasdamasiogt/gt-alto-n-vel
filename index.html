@@ -2439,15 +2439,12 @@ function drawRadar(vals){
 }
 
 function renderSkillList(data){
-    const v=data[i]||0;
-    return `<div class="skill-row"><div class="skill-dot" style="background:${s.color};box-shadow:0 0 5px ${s.color}80"></div><div class="skill-name-lbl">${s.icon} ${s.name}</div><div class="skill-bar-wrap"><div class="skill-bar-fill" style="width:${v}%;background:${s.color}"></div></div><div class="skill-pct-lbl">${v}%</div></div>`;
-  }).join('');
+  // função mantida para compatibilidade mas sem output visual
+}).join('');
 }
 
 function renderInsight(data){
-  const mx=data.indexOf(Math.max(...data)),mn=data.indexOf(Math.min(...data));
-    ? `📊 Ainda sem dados suficientes para os últimos <strong>${rPeriod} Dias</strong>. Continue treinando e registrando seu progresso!`
-    : `📊 Nos últimos <strong>${rPeriod} Dias</strong>, você treinou mais <strong style="color:${radarSkills[mx].color}">${radarSkills[mx].name}</strong> (${data[mx]}%). Menor foco em <strong style="color:${radarSkills[mn].color}">${radarSkills[mn].name}</strong> (${data[mn]}%) — considere reservar mais tempo pra essa área.`;
+  // função mantida para compatibilidade mas sem output visual
 }
 
 // ═══════════════════════════════════════════════════════════
