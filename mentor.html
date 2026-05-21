@@ -1401,11 +1401,12 @@ async function addExercicio(){
         time: new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
         lida: false
       });
-      await api(`alunos?id=eq.${selectedAlunoId}`, {
+      const patchRes = await api(`alunos?id=eq.${selectedAlunoId}`, {
         method: 'PATCH',
         body: JSON.stringify({notificacoes_pendentes: JSON.stringify(notifs)}),
         prefer: 'return=minimal'
       });
+      console.log('Notif salva:', patchRes);
     } catch(e) { console.warn('Notif aluno:', e); }
   }catch(e){showToast('⚠️ Erro ao salvar: '+e.message);}
 }

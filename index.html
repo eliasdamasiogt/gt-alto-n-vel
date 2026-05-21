@@ -1672,6 +1672,7 @@ function buildExCard(ex) {
   <div class="ex-card" id="ex-${ex.id}">
     <div class="ex-card-pulse-line" id="pulse-line-${ex.id}"></div>
     <div class="metro-active-dot" id="metro-dot-${ex.id}"></div>
+    ${isNewEx(ex) ? `<span class="badge-new" id="new-badge-${ex.id}" style="position:absolute;top:10px;right:10px;z-index:4;margin:0">NEW</span>` : ''}
     <div class="ex-head">
       <div style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0" onclick="toggleEx('${ex.id}')">
       <div class="ex-check" id="chk-${ex.id}" onclick="event.stopPropagation();toggleCheck('${ex.id}')">✓</div>
@@ -1685,7 +1686,6 @@ function buildExCard(ex) {
         </div>
       </div>
       </div><!-- ex-head-inner -->
-      ${isNewEx(ex) ? '<span class="badge-new" style="position:absolute;top:10px;right:52px;z-index:2">NEW</span>' : ''}
       <button class="card-play-btn" id="card-play-${ex.id}" onclick="event.stopPropagation();toggleCardPlay('${ex.id}')" title="Iniciar metrônomo">▶</button>
       <div class="circ-wrap">
         <svg class="circ-svg" width="46" height="46" viewBox="0 0 46 46">
@@ -2067,6 +2067,9 @@ function toggleCardPlay(exId) {
   const m = mState[exId];
   if (!m) return;
   const btn = document.getElementById('card-play-' + exId);
+  // remove badge NEW ao iniciar
+  const newBadge = document.getElementById('new-badge-' + exId);
+  if (newBadge) newBadge.remove();
 
   if (m.playing) {
     // para metrônomo
