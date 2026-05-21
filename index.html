@@ -1390,6 +1390,22 @@ async function init() {
     const regs = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}`);
     regs.forEach(r => { registros[r.exercicio_id] = r; });
 
+    // para exercícios sem registro hoje, busca o último BPM registrado
+    // garante continuidade ao reativar exercício após pausa
+    for (const ex of exercicios) {
+      if (!registros[ex.id] && ex.bpm_inicial) {
+        try {
+          const ultReg = await api(
+            `registros_diarios?aluno_id=eq.${alunoId}&exercicio_id=eq.${ex.id}&bpm_hoje=not.is.null&order=data.desc&limit=1&select=bpm_hoje`
+          );
+          if (ultReg?.[0]?.bpm_hoje) {
+            registros[ex.id] = registros[ex.id] || {};
+            registros[ex.id]._bpm_retomada = ultReg[0].bpm_hoje;
+          }
+        } catch(e) {}
+      }
+    }
+
     // carrega repertório
     setLoadingMsg('Carregando repertório...');
     repertorioData = await api(`repertorio?aluno_id=eq.${alunoId}&order=ordem.asc`);
@@ -1560,7 +1576,7 @@ function renderTreino() {
       // init metro state
       const reg = registros[ex.id] || {};
       mState[ex.id] = {
-        bpm: reg.bpm_hoje || ex.bpm_inicial || 60,
+        bpm: reg.bpm_hoje || reg._bpm_retomada || ex.bpm_inicial || 60,
         beats: reg.compasso_num || ex.compasso_num || 4,
         denom: reg.compasso_den || ex.compasso_den || 4,
         acento: reg.acento !== undefined ? reg.acento : (ex.acento !== false),
@@ -3080,7 +3096,10 @@ function renderVideos() {
 
       display.innerHTML = `
         <div class="video-sent">
-          <a class="video-sent-link" href="${v.link_youtube}" target="_blank">▶ ${v.link_youtube}</a>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+            <a class="video-sent-link" href="${v.link_youtube}" target="_blank" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">▶ ${v.link_youtube}</a>
+            ${v.status === 'pendente' ? `<button onclick="removerVideo('${ex.id}')" style="flex-shrink:0;width:20px;height:20px;border-radius:50%;border:1px solid var(--re);background:transparent;color:var(--re);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;line-height:1" title="Remover vídeo">✕</button>` : ''}
+          </div>
           <div><span class="video-sent-status ${st.cls}">${st.label}</span></div>
           ${feedbackHtml}
           ${advanceBadge}
@@ -3236,6 +3255,37 @@ function toggleNotifPanel() {
         }
       });
     }, 50);
+  }
+}
+
+
+async function removerVideo(exId) {
+  if (!confirm('Remover este vídeo?')) return;
+  try {
+    // deleta o vídeo do banco
+    const v = Object.values(videosData).find(v => {
+      const ex = exercicios.find(e => e.id === exId);
+      return ex && v.exercicio_id === exId;
+    });
+    // busca pelo exercicio_id
+    await api(`videos_aluno?aluno_id=eq.${alunoId}&exercicio_id=eq.${exId}`, {
+      method: 'DELETE',
+      prefer: 'return=minimal'
+    });
+    // remove do cache local
+    delete videosData[exId];
+    // reseta notif log para este vídeo
+    const notifKey = 'edh_vid_notif_' + alunoId;
+    try {
+      const log = JSON.parse(localStorage.getItem(notifKey) || '{}');
+      // limpa entradas relacionadas
+      Object.keys(log).forEach(k => { if (log[k] && k.includes(exId)) delete log[k]; });
+      localStorage.setItem(notifKey, JSON.stringify(log));
+    } catch(e) {}
+    renderVideos();
+    showToast('🗑 Vídeo removido.');
+  } catch(e) {
+    showToast('⚠️ Erro ao remover vídeo.');
   }
 }
 
