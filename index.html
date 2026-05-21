@@ -907,13 +907,13 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
     <div class="oneup-popup-icon" id="oneup-popup-icon"></div>
     <div class="oneup-popup-title">1-UP!</div>
     <div class="oneup-popup-desc">
-      Assim como no Mario, um <strong style="color:#7eecc4">1-UP</strong> é uma vida extra — aqui ela protege seu streak quando você precisar faltar um dia de treino.
+      O <strong style="color:#7eecc4">1-UP</strong> é uma vida extra — ela protege seu streak quando você precisar faltar um dia de treino.
     </div>
     <div class="oneup-popup-cond">
       🎯 <strong>Como ganhar:</strong> treine por <strong>14 dias consecutivos</strong> e você ganha automaticamente 1 vida. Use ela quando precisar!
     </div>
     <div class="oneup-popup-status" id="oneup-status"></div>
-    <button class="oneup-popup-btn" onclick="fecharOneupPopup()">Entendido! 🍄</button>
+    <button class="oneup-popup-btn" id="oneup-popup-btn" onclick="fecharOneupPopup()">Entendido! <img src="" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;margin-left:2px"></button>
   </div>
 </div>
 
@@ -3585,6 +3585,8 @@ function playOneupSound() {
 function abrirOneupPopup() {
   const iconEl = document.getElementById('oneup-popup-icon');
   if (iconEl) iconEl.innerHTML = `<img src="${MUSHROOM_IMG}" style="width:80px;height:80px;object-fit:contain">`;
+  const btnImg = document.querySelector('#oneup-popup-btn img');
+  if (btnImg) btnImg.src = MUSHROOM_IMG;
   const data = loadOneup();
   const streak = alunoData?.streak || 0;
   const temVida = data.vidas > 0 && !data.usada;
