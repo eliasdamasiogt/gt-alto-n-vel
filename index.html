@@ -864,6 +864,27 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 /* centralizar texto dos outros cards */
 .streak-card { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
+
+/* ══ BADGE NEW ════════════════════════════════════════════ */
+.badge-new {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .8px;
+  color: #fff;
+  background: #22c78a;
+  padding: 2px 6px;
+  border-radius: 20px;
+  vertical-align: middle;
+  margin-left: 6px;
+  box-shadow: 0 0 8px rgba(34,199,138,.6);
+  animation: new-pulse 2s ease-in-out infinite;
+}
+@keyframes new-pulse {
+  0%,100% { box-shadow: 0 0 6px rgba(34,199,138,.5); }
+  50%      { box-shadow: 0 0 14px rgba(34,199,138,.9); }
+}
+
 </style>
 </head>
 <body>
@@ -1417,6 +1438,8 @@ async function init() {
     // carrega recompensas, vídeos e notificações
     await loadRecompensas();
     loadNotificacoes();
+    // verifica notificações pendentes enviadas pelo mentor
+    await carregarNotifPendentes();
     window._primeiroLoad = true; // bloqueia celebration durante carregamento inicial
     renderProfile();
     renderTreino();
@@ -1623,6 +1646,15 @@ function renderTreino() {
   setTimeout(carregarAutoBpmBadges, 600);
 }
 
+
+function isNewEx(ex) {
+  if (!ex.created_at) return false;
+  const created = new Date(ex.created_at);
+  const agora = new Date();
+  const diffDias = (agora - created) / (1000 * 60 * 60 * 24);
+  return diffDias <= 3;
+}
+
 function buildExCard(ex) {
   const color = catColors[ex.categoria] || '#8b7ff5';
   const pillClass = catPills[ex.categoria] || 'pill-pu';
@@ -1644,7 +1676,9 @@ function buildExCard(ex) {
       <div style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0" onclick="toggleEx('${ex.id}')">
       <div class="ex-check" id="chk-${ex.id}" onclick="event.stopPropagation();toggleCheck('${ex.id}')">✓</div>
       <div class="ex-info">
-        <div class="ex-name">${ex.nome}</div>
+        <div class="ex-name">
+          ${ex.nome}${isNewEx(ex) ? '<span class="badge-new">NEW</span>' : ''}
+        </div>
         <div class="ex-pills">
           <span class="pill ${pillClass}">${ex.categoria}</span>
           <span class="mp">${durTotal} min</span>
@@ -3362,6 +3396,31 @@ async function calcularStatsmes() {
   } catch(e) {
     console.warn('Stats mês:', e);
   }
+}
+
+
+// ══ NOTIFICAÇÕES PENDENTES DO MENTOR ════════════════════
+async function carregarNotifPendentes() {
+  try {
+    const res = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
+    const raw = res?.[0]?.notificacoes_pendentes;
+    if (!raw) return;
+    let notifs = [];
+    try { notifs = JSON.parse(raw); } catch(e) { return; }
+    if (!notifs.length) return;
+
+    // dispara cada notificação pendente
+    notifs.forEach(n => {
+      addNotificacao(n.icon || '🆕', n.title, n.msg);
+    });
+
+    // limpa as notificações pendentes do banco após ler
+    await api(`alunos?id=eq.${alunoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({notificacoes_pendentes: null}),
+      prefer: 'return=minimal'
+    });
+  } catch(e) { console.warn('Notif pendentes:', e); }
 }
 
 // ═══════════════════════════════════════════════════════════
