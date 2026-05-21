@@ -1649,6 +1649,9 @@ function renderTreino() {
 
 function isNewEx(ex) {
   if (!ex.created_at) return false;
+  // some se o aluno já tem qualquer registro para este exercício
+  if (registros[ex.id] && (registros[ex.id].concluido || registros[ex.id].bpm_hoje || registros[ex.id].dificuldade)) return false;
+  // some após 3 dias independentemente
   const created = new Date(ex.created_at);
   const agora = new Date();
   const diffDias = (agora - created) / (1000 * 60 * 60 * 24);
@@ -1817,6 +1820,9 @@ function toggleCheck(id) {
   checkLock[id] = true;
   setTimeout(() => checkLock[id] = false, 300);
   checks[id] = !checks[id];
+  // remove badge NEW ao marcar exercício
+  const newBadge = document.getElementById('new-badge-' + id);
+  if (newBadge) newBadge.remove();
   document.getElementById('chk-'+id)?.classList.toggle('on', checks[id]);
   document.getElementById('ex-'+id)?.classList.toggle('done', checks[id]);
   if (checks[id]) playMario();
@@ -1864,7 +1870,8 @@ async function saveRegistro(exId, fields) {
     ...fields
   };
   try {
-    if (existing) {
+    if (existing && existing.id) {
+      // registro real existe — faz PATCH
       await api(`registros_diarios?id=eq.${existing.id}`, {
         method: 'PATCH',
         body: JSON.stringify(fields),
@@ -1872,11 +1879,25 @@ async function saveRegistro(exId, fields) {
       });
       registros[exId] = {...existing, ...fields};
     } else {
-      const res = await api('registros_diarios', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res && res[0]) registros[exId] = res[0];
+      // sem registro real — verifica se já existe no banco por exercicio+data
+      const check = await api(`registros_diarios?aluno_id=eq.${alunoId}&exercicio_id=eq.${exId}&data=eq.${TODAY}&select=id`);
+      if (check && check[0]?.id) {
+        // existe no banco mas não estava no cache — faz PATCH
+        await api(`registros_diarios?id=eq.${check[0].id}`, {
+          method: 'PATCH',
+          body: JSON.stringify(fields),
+          prefer: 'return=minimal'
+        });
+        registros[exId] = {...(registros[exId]||{}), id: check[0].id, ...fields};
+      } else {
+        // não existe — cria novo
+        const res = await api('registros_diarios', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          prefer: 'return=representation'
+        });
+        if (res && res[0]) registros[exId] = res[0];
+      }
     }
   } catch(e) {
     console.error('Erro ao salvar registro:', e);
@@ -2145,6 +2166,8 @@ function esconderMiniTimer() {
 
 function scheduleMetroEx(id) {
   const m=mState[id]; if(!m) return;
+  // sempre limpa intervalo anterior para evitar múltiplas instâncias
+  if (m.metroIntv) { clearInterval(m.metroIntv); m.metroIntv = null; }
   const intv=Math.round((60/m.bpm)*1000*(m.denom===8?.667:1));
   m.beat=0; metroTick(id);
   m.metroIntv=setInterval(()=>metroTick(id),intv);
@@ -2191,6 +2214,10 @@ function resetTimerEx(id){
 
 function toggleMPlayEx(id){
   const m=mState[id]; if(!m) return;
+  // proteção contra duplo clique — ignora se já está processando
+  if (m._toggling) return;
+  m._toggling = true;
+  setTimeout(() => { if(m) m._toggling = false; }, 300);
   m.playing=!m.playing;
   const btn=document.getElementById('mplay-'+id);
   if(m.playing){
@@ -3044,8 +3071,39 @@ function _fecharMaterial() {
 
 // Fecha com ESC
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') _fecharMaterial();
+  if (e.key === 'Escape') {
+    _fecharMaterial();
+    // ESC também para todos os metrônomos
+    pararTodosMetronomes();
+  }
+  // bloqueia barra de espaço de disparar metrônomo globalmente
+  if (e.key === ' ' || e.code === 'Space') {
+    const tag = document.activeElement?.tagName;
+    // só bloqueia se não estiver em input/textarea/button
+    if (!['INPUT','TEXTAREA','BUTTON','SELECT'].includes(tag)) {
+      e.preventDefault();
+    }
+  }
 });
+
+function pararTodosMetronomes() {
+  Object.keys(mState).forEach(id => {
+    const m = mState[id];
+    if (m && m.playing) {
+      m.playing = false;
+      if (m.metroIntv) { clearInterval(m.metroIntv); m.metroIntv = null; }
+      cancelAnimationFrame(m.timerRAF);
+      stopCardPulse(id);
+      const btn = document.getElementById('mplay-' + id);
+      if (btn) { btn.textContent = '▶'; btn.classList.remove('playing'); }
+      const cardBtn = document.getElementById('card-play-' + id);
+      if (cardBtn) { cardBtn.textContent = '▶'; cardBtn.classList.remove('playing'); }
+      const rod = document.getElementById('pend-' + id);
+      if (rod) { rod.style.transition = 'transform .4s'; rod.style.transform = 'translateX(-50%) rotate(0deg)'; }
+    }
+  });
+  esconderMiniTimer();
+}
 
 // ── TIMER FLUTUANTE ───────────────────────────────────────
 function atualizarFloatTimer() {
@@ -3403,29 +3461,32 @@ async function calcularStatsmes() {
 
 // ══ NOTIFICAÇÕES PENDENTES DO MENTOR ════════════════════
 async function carregarNotifPendentes() {
-  if (!alunoId) return;
+  if (!alunoId) { console.log('[NOTIF] sem alunoId'); return; }
   try {
+    console.log('[NOTIF] buscando para', alunoId);
     const res = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
+    console.log('[NOTIF] resposta:', JSON.stringify(res));
     const raw = res?.[0]?.notificacoes_pendentes;
-    if (!raw) return;
+    console.log('[NOTIF] raw:', raw);
+    if (!raw) { console.log('[NOTIF] campo vazio'); return; }
     let notifs = [];
-    try { notifs = JSON.parse(raw); } catch(e) { return; }
+    try { notifs = JSON.parse(raw); } catch(e) { console.log('[NOTIF] parse erro:', e); return; }
+    console.log('[NOTIF] notifs:', notifs.length);
     if (!notifs.length) return;
 
-    // pequeno delay para garantir que o sininho já está no DOM
     setTimeout(() => {
       notifs.forEach(n => {
+        console.log('[NOTIF] disparando:', n.title);
         addNotificacao(n.icon || '🆕', n.title, n.msg);
       });
     }, 1000);
 
-    // limpa as notificações pendentes do banco após ler
     await api(`alunos?id=eq.${alunoId}`, {
       method: 'PATCH',
       body: JSON.stringify({notificacoes_pendentes: null}),
       prefer: 'return=minimal'
     });
-  } catch(e) { console.warn('Notif pendentes:', e); }
+  } catch(e) { console.warn('[NOTIF] erro:', e); }
 }
 
 // ═══════════════════════════════════════════════════════════
