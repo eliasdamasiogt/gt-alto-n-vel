@@ -755,6 +755,118 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   line-height: 1.2;
 }
 
+
+/* ══ 1-UP SISTEMA ════════════════════════════════════════ */
+.oneup-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 20px;
+  transition: all .15s;
+  user-select: none;
+}
+.oneup-badge:hover { opacity: .85; transform: scale(1.05); }
+.oneup-badge.available {
+  background: #0a2a0a;
+  border: 1px solid #22c78a;
+  color: #7eecc4;
+}
+.oneup-badge.used {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--t3);
+}
+.oneup-mushroom { font-size: 16px; }
+.oneup-text { font-size: 11px; font-weight: 700; letter-spacing: .5px; }
+
+/* animação 1-UP */
+.oneup-anim {
+  position: fixed;
+  pointer-events: none;
+  z-index: 999;
+  font-size: 22px;
+  font-weight: 900;
+  color: #22c78a;
+  text-shadow: 0 0 12px #22c78a, 2px 2px 0 #000;
+  opacity: 0;
+  animation: oneup-fly 1.8s ease-out forwards;
+  white-space: nowrap;
+  letter-spacing: 2px;
+}
+@keyframes oneup-fly {
+  0%   { opacity:0; transform: translateY(0) scale(.6); }
+  15%  { opacity:1; transform: translateY(-20px) scale(1.2); }
+  60%  { opacity:1; transform: translateY(-80px) scale(1); }
+  100% { opacity:0; transform: translateY(-130px) scale(.8); }
+}
+
+/* popup 1-UP */
+.oneup-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.75);
+  z-index: 600;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.oneup-overlay.open { display: flex; }
+.oneup-popup {
+  background: var(--bg1);
+  border: 1px solid #22c78a;
+  border-radius: 20px;
+  padding: 28px 24px;
+  max-width: 340px;
+  width: 100%;
+  text-align: center;
+  animation: slideUp .3s cubic-bezier(.4,0,.2,1);
+}
+.oneup-popup-icon { font-size: 56px; margin-bottom: 12px; }
+.oneup-popup-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #7eecc4;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.oneup-popup-desc {
+  font-size: 13px;
+  color: var(--t2);
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+.oneup-popup-cond {
+  background: #0a2a0a;
+  border: 1px solid #22c78a40;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #7eecc4;
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+.oneup-popup-status {
+  font-size: 12px;
+  color: var(--t3);
+  margin-bottom: 16px;
+}
+.oneup-popup-btn {
+  padding: 10px 24px;
+  background: #22c78a;
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* centralizar texto dos outros cards */
+.streak-card { text-align: center; }
+
 </style>
 </head>
 <body>
@@ -793,6 +905,22 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 </div>
 
 <div class="app" id="main-app" style="display:none">
+
+<!-- POPUP 1-UP -->
+<div class="oneup-overlay" id="oneup-overlay" onclick="fecharOneupPopup(event)">
+  <div class="oneup-popup">
+    <div class="oneup-popup-icon">🍄</div>
+    <div class="oneup-popup-title">1-UP!</div>
+    <div class="oneup-popup-desc">
+      Assim como no Mario, um <strong style="color:#7eecc4">1-UP</strong> é uma vida extra — aqui ela protege seu streak quando você precisar faltar um dia de treino.
+    </div>
+    <div class="oneup-popup-cond">
+      🎯 <strong>Como ganhar:</strong> treine por <strong>14 dias consecutivos</strong> e você ganha automaticamente 1 vida. Use ela quando precisar!
+    </div>
+    <div class="oneup-popup-status" id="oneup-status"></div>
+    <button class="oneup-popup-btn" onclick="fecharOneupPopup()">Entendido! 🍄</button>
+  </div>
+</div>
 
 <!-- POPUP DE REGISTRO (dificuldade + anotação) -->
 <div class="registro-overlay" id="registro-overlay">
@@ -1070,7 +1198,7 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
     <div class="streak-card">
       <div class="streak-num" id="streak-num">🔥 0</div>
       <div class="streak-lbl">dias seguidos</div>
-      <div id="protecao-lbl" style="font-size:10px;color:var(--t3);margin-top:4px"></div>
+      <div id="oneup-badge-wrap" style="margin-top:4px"></div>
     </div>
     <div class="streak-card"><div class="streak-num" id="treinos-mes">0</div><div class="streak-lbl">treinos no mês</div></div>
     <div class="streak-card"><div class="streak-num" id="conclusao-pct">0%</div><div class="streak-lbl">conclusão</div></div>
@@ -1244,19 +1372,15 @@ async function init() {
           const protecaoKey = 'edh_protecao_' + alunoId + '_' + mesAtual;
           const protecaoUsada = localStorage.getItem(protecaoKey) === '1';
 
-          if (!protecaoUsada && novoStreak >= 3) {
-            // usa proteção automaticamente (só protege se streak >= 3 dias)
-            localStorage.setItem(protecaoKey, '1');
-            // streak continua — não zera
-            showToast('🛡️ Proteção de streak usada! Seu streak foi mantido.');
-            addNotificacao('🛡️', 'Proteção de streak ativada!',
-              `Você não treinou ontem, mas sua proteção mensal salvou seu streak de ${novoStreak} dias.`);
-          } else {
-            // sem proteção ou streak pequeno — zera
+          // tenta usar 1-UP se disponível
+          const oneupUsado = usarOneupSeDisponivel();
+          if (!oneupUsado) {
+            // sem 1-UP — zera streak
+            const streakAntes = novoStreak;
             novoStreak = 0;
             await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({streak:0}), prefer:'return=minimal'});
             if (alunoData) alunoData.streak = 0;
-            if (novoStreak === 0 && (alunoData?.streak||0) > 3) {
+            if (streakAntes > 3) {
               showToast('💔 Streak zerado. Volte a treinar hoje!');
             }
           }
@@ -1367,15 +1491,8 @@ function renderProfile() {
 
   // streak
   document.getElementById('streak-num').textContent = '🔥 ' + streak;
-  // status da proteção mensal
-  const mesAtual = TODAY.slice(0,7);
-  const protecaoKey = 'edh_protecao_' + alunoId + '_' + mesAtual;
-  const protecaoUsada = localStorage.getItem(protecaoKey) === '1';
-  const protecaoEl = document.getElementById('protecao-lbl');
-  if (protecaoEl) {
-    protecaoEl.textContent = protecaoUsada ? '🛡️ Proteção usada este mês' : '🛡️ Proteção disponível';
-    protecaoEl.style.color = protecaoUsada ? 'var(--re)' : 'var(--te)';
-  }
+  // badge 1-UP
+  verificarOneup();
 
   // treinos no mês e % conclusão
   calcularStatsmes();
@@ -3359,6 +3476,148 @@ function aplicarTema(tema, salvar) {
     if (el) el.textContent = '🌙 Tema escuro';
   }
   if (salvar) localStorage.setItem('edh_tema', tema);
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// SISTEMA 1-UP
+// ═══════════════════════════════════════════════════════════
+
+function getOneupKey() { return 'edh_oneup_' + alunoId; }
+
+function loadOneup() {
+  try {
+    return JSON.parse(localStorage.getItem(getOneupKey()) || '{"vidas":0,"usada":false}');
+  } catch(e) { return {vidas:0, usada:false}; }
+}
+
+function saveOneup(data) {
+  localStorage.setItem(getOneupKey(), JSON.stringify(data));
+}
+
+function renderOneupBadge() {
+  const wrap = document.getElementById('oneup-badge-wrap');
+  if (!wrap) return;
+  const data = loadOneup();
+  const streak = alunoData?.streak || 0;
+  const temVida = data.vidas > 0 && !data.usada;
+
+  if (temVida) {
+    wrap.innerHTML = `<div class="oneup-badge available" onclick="abrirOneupPopup()">
+      <span class="oneup-mushroom">🍄</span>
+      <span class="oneup-text">1-UP!</span>
+    </div>`;
+  } else if (data.usada) {
+    wrap.innerHTML = `<div class="oneup-badge used" onclick="abrirOneupPopup()">
+      <span class="oneup-mushroom">🍄</span>
+      <span class="oneup-text">USADA</span>
+    </div>`;
+  } else {
+    // mostra progresso para ganhar
+    const diasParaGanhar = Math.max(0, 14 - streak);
+    if (streak > 0) {
+      wrap.innerHTML = `<div class="oneup-badge used" onclick="abrirOneupPopup()" style="cursor:pointer">
+        <span class="oneup-mushroom">🍄</span>
+        <span class="oneup-text" style="font-size:9px">${diasParaGanhar > 0 ? diasParaGanhar + 'd p/ 1-UP' : '1-UP!'}</span>
+      </div>`;
+    }
+  }
+}
+
+function verificarOneup() {
+  const streak = alunoData?.streak || 0;
+  const data = loadOneup();
+
+  // ganha 1-UP a cada 14 dias consecutivos
+  if (streak > 0 && streak % 14 === 0 && !data.ganhouNaStreak) {
+    data.vidas = 1;
+    data.usada = false;
+    data.ganhouNaStreak = streak;
+    saveOneup(data);
+    // animação e som
+    mostrarAnimacaoOneup();
+    addNotificacao('🍄', '1-UP! Você ganhou uma vida!',
+      `Parabéns! ${streak} dias consecutivos — você ganhou uma proteção de streak!`);
+    setTimeout(() => showToast('🍄 1-UP! Você ganhou uma vida!'), 500);
+  }
+  renderOneupBadge();
+}
+
+function mostrarAnimacaoOneup() {
+  // cria elemento de animação
+  const el = document.createElement('div');
+  el.className = 'oneup-anim';
+  el.textContent = '🍄 1-UP!';
+  el.style.left = '50%';
+  el.style.top = '60%';
+  el.style.transform = 'translateX(-50%)';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2000);
+  // som do Mario (síntese de áudio)
+  playOneupSound();
+}
+
+function playOneupSound() {
+  try {
+    const ctx = getACtx();
+    // notas aproximadas do som 1-UP do Mario
+    const notes = [
+      {f:523.25, t:0,    d:.08},
+      {f:659.25, t:.09,  d:.08},
+      {f:783.99, t:.18,  d:.08},
+      {f:1046.5, t:.27,  d:.08},
+      {f:783.99, t:.36,  d:.06},
+      {f:1046.5, t:.43,  d:.25},
+    ];
+    notes.forEach(n => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = 'square';
+      o.frequency.value = n.f;
+      g.gain.setValueAtTime(0.18, ctx.currentTime + n.t);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + n.t + n.d);
+      o.start(ctx.currentTime + n.t);
+      o.stop(ctx.currentTime + n.t + n.d + 0.05);
+    });
+  } catch(e) {}
+}
+
+function abrirOneupPopup() {
+  const data = loadOneup();
+  const streak = alunoData?.streak || 0;
+  const temVida = data.vidas > 0 && !data.usada;
+  const diasParaGanhar = Math.max(0, 14 - (streak % 14 || 14));
+
+  const statusEl = document.getElementById('oneup-status');
+  if (statusEl) {
+    if (temVida) {
+      statusEl.innerHTML = '<span style="color:#7eecc4;font-weight:500">✅ Você tem 1 vida disponível!</span><br>Ela será usada automaticamente se você faltar um dia.';
+    } else if (data.usada) {
+      statusEl.innerHTML = `<span style="color:var(--t3)">Vida já usada este ciclo.</span><br>Continue treinando — próximo 1-UP em <strong>${diasParaGanhar} dias</strong>.`;
+    } else {
+      statusEl.innerHTML = `Faltam <strong style="color:#7eecc4">${diasParaGanhar} dias</strong> de treino consecutivo para ganhar seu próximo 1-UP.<br>Streak atual: 🔥 ${streak} dias`;
+    }
+  }
+  document.getElementById('oneup-overlay').classList.add('open');
+}
+
+function fecharOneupPopup(event) {
+  if (event && event.target !== document.getElementById('oneup-overlay')) return;
+  document.getElementById('oneup-overlay').classList.remove('open');
+}
+
+// Usar 1-UP na lógica de streak
+function usarOneupSeDisponivel() {
+  const data = loadOneup();
+  if (data.vidas > 0 && !data.usada) {
+    data.usada = true;
+    saveOneup(data);
+    addNotificacao('🍄', '1-UP usado!', 'Sua vida extra protegeu seu streak hoje!');
+    showToast('🍄 1-UP usado! Streak protegido!');
+    return true;
+  }
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════
