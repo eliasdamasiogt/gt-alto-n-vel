@@ -1676,9 +1676,7 @@ function buildExCard(ex) {
       <div style="display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0" onclick="toggleEx('${ex.id}')">
       <div class="ex-check" id="chk-${ex.id}" onclick="event.stopPropagation();toggleCheck('${ex.id}')">✓</div>
       <div class="ex-info">
-        <div class="ex-name">
-          ${ex.nome}${isNewEx(ex) ? '<span class="badge-new">NEW</span>' : ''}
-        </div>
+        <div class="ex-name">${ex.nome}</div>
         <div class="ex-pills">
           <span class="pill ${pillClass}">${ex.categoria}</span>
           <span class="mp">${durTotal} min</span>
@@ -1687,6 +1685,7 @@ function buildExCard(ex) {
         </div>
       </div>
       </div><!-- ex-head-inner -->
+      ${isNewEx(ex) ? '<span class="badge-new" style="position:absolute;top:10px;right:52px;z-index:2">NEW</span>' : ''}
       <button class="card-play-btn" id="card-play-${ex.id}" onclick="event.stopPropagation();toggleCardPlay('${ex.id}')" title="Iniciar metrônomo">▶</button>
       <div class="circ-wrap">
         <svg class="circ-svg" width="46" height="46" viewBox="0 0 46 46">
@@ -3401,6 +3400,7 @@ async function calcularStatsmes() {
 
 // ══ NOTIFICAÇÕES PENDENTES DO MENTOR ════════════════════
 async function carregarNotifPendentes() {
+  if (!alunoId) return;
   try {
     const res = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
     const raw = res?.[0]?.notificacoes_pendentes;
@@ -3409,10 +3409,12 @@ async function carregarNotifPendentes() {
     try { notifs = JSON.parse(raw); } catch(e) { return; }
     if (!notifs.length) return;
 
-    // dispara cada notificação pendente
-    notifs.forEach(n => {
-      addNotificacao(n.icon || '🆕', n.title, n.msg);
-    });
+    // pequeno delay para garantir que o sininho já está no DOM
+    setTimeout(() => {
+      notifs.forEach(n => {
+        addNotificacao(n.icon || '🆕', n.title, n.msg);
+      });
+    }, 1000);
 
     // limpa as notificações pendentes do banco após ler
     await api(`alunos?id=eq.${alunoId}`, {
