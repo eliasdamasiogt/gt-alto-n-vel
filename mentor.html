@@ -415,6 +415,29 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
 .hist-item-note{font-size:11px;color:var(--t2);font-style:italic;line-height:1.5;margin-top:3px}
 .hist-loading{font-size:11px;color:var(--t3);padding:8px 0;text-align:center}
 
+
+/* ══ SEMÁFORO DE RISCO ═══════════════════════════════════ */
+.risk-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px currentColor;
+}
+.risk-green  { background: #22c78a; color: #22c78a; }
+.risk-yellow { background: #f0a832; color: #f0a832; }
+.risk-red    { background: #e05555; color: #e05555; animation: risk-pulse 1.5s ease-in-out infinite; }
+@keyframes risk-pulse {
+  0%,100% { box-shadow: 0 0 4px currentColor; }
+  50%      { box-shadow: 0 0 12px currentColor, 0 0 20px currentColor; }
+}
+.risk-label {
+  font-size: 10px;
+  font-weight: 500;
+}
+.risk-green-t  { color: #22c78a; }
+.risk-yellow-t { color: #f0a832; }
+.risk-red-t    { color: #e05555; }
+
 </style>
 </head>
 <body>
@@ -839,6 +862,7 @@ let allAlunos = [];
 let allSessoes = [];
 let todayRegs = [];
 let allExercicios = [];
+let recentRegs = [];
 let selectedAlunoId = null;
 let editorExercicios = [];
 let editorRepertorio = [];
@@ -862,6 +886,11 @@ async function loadAll() {
     todayRegs = await api(`registros_diarios?data=eq.${TODAY}&select=*`);
     // carrega todos os exercícios para cruzar com as anotações
     allExercicios = await api('exercicios?ativo=eq.true&select=id,nome,aluno_id,categoria');
+    // carrega registros dos últimos 7 dias para o semáforo de risco
+    const seteDiasAtras = new Date();
+    seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+    const seteDiasStr = seteDiasAtras.toISOString().split('T')[0];
+    recentRegs = await api(`registros_diarios?data=gte.${seteDiasStr}&concluido=eq.true&select=aluno_id,data`);
     renderAlunos();
     renderMontarSel();
     renderLinks();
@@ -886,6 +915,51 @@ async function loadAll() {
 // ═══════════════════════════════════════════════════════════
 // ABA ALUNOS
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// SEMÁFORO DE RISCO
+// ═══════════════════════════════════════════════════════════
+function calcularRisco(alunoId) {
+  // conta dias únicos treinados nos últimos 7 dias
+  const diasTreinou = new Set(
+    recentRegs
+      .filter(r => r.aluno_id === alunoId)
+      .map(r => r.data)
+  );
+
+  // verifica se treinou hoje
+  const treinouHoje = todayRegs.some(r => r.aluno_id === alunoId && r.concluido);
+
+  // último dia treinado
+  const diasOrdenados = [...diasTreinou].sort().reverse();
+  const ultimoDia = diasOrdenados[0];
+  const hoje = TODAY;
+  const ontem = new Date(); ontem.setDate(ontem.getDate()-1);
+  const ontemStr = ontem.toISOString().split('T')[0];
+
+  let diasSemTreino = 0;
+  if (treinouHoje) {
+    diasSemTreino = 0;
+  } else if (ultimoDia === ontemStr) {
+    diasSemTreino = 1;
+  } else if (ultimoDia) {
+    const diff = Math.floor((new Date(hoje) - new Date(ultimoDia)) / (1000*60*60*24));
+    diasSemTreino = diff;
+  } else {
+    diasSemTreino = 99; // nunca treinou
+  }
+
+  if (diasSemTreino === 0) {
+    return { dot: 'risk-green', textClass: 'risk-green-t', label: 'Treinou hoje' };
+  } else if (diasSemTreino <= 2) {
+    return { dot: 'risk-yellow', textClass: 'risk-yellow-t', label: `${diasSemTreino}d sem treinar` };
+  } else if (diasSemTreino <= 5) {
+    return { dot: 'risk-yellow', textClass: 'risk-yellow-t', label: `${diasSemTreino}d sem treinar ⚠️` };
+  } else {
+    return { dot: 'risk-red', textClass: 'risk-red-t', label: `${diasSemTreino}d sem treinar 🚨` };
+  }
+}
+
 function renderAlunos() {
   const treinouHoje = new Set(todayRegs.filter(r=>r.concluido).map(r=>r.aluno_id));
   const temNotas = new Set(todayRegs.filter(r=>r.anotacao).map(r=>r.aluno_id));
@@ -910,13 +984,18 @@ function renderAlunos() {
     let pillHtml = treinou
       ? (dif > 0 ? `<span class="pill pill-amber">${dif} difícil</span>` : '<span class="pill pill-green">Treinou hoje</span>')
       : '<span class="pill pill-gray">Sem registro</span>';
+    const riscoHtml = `<div class="risk-dot ${risco.dot}" title="${risco.label}"></div>`;
+    const risco = calcularRisco(a.id);
     return `
     <div class="aluno-card" id="ac-${a.id}">
       <div class="aluno-head" onclick="toggleAluno('${a.id}')">
         <div class="av">${initials}</div>
         <div class="aluno-info">
-          <div class="aluno-name">${a.nome}</div>
-          <div class="aluno-meta">Nível ${a.nivel||1} · ${a.xp||0} XP · 🔥${a.streak||0} dias</div>
+          <div class="aluno-name" style="display:flex;align-items:center;gap:7px">
+            ${riscoHtml}
+            <span>${a.nome}</span>
+          </div>
+          <div class="aluno-meta">Nível ${a.nivel||1} · ${a.xp||0} XP · 🔥${a.streak||0} dias · <span class="${risco.textClass}">${risco.label}</span></div>
         </div>
         ${pillHtml}
         <span class="aluno-chev" style="margin-left:8px">›</span>
