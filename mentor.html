@@ -1283,7 +1283,7 @@ function renderMontarSel(){
     + '<button class="btn" style="margin-left:auto" onclick="goTab(\'novo\')">+ Novo</button>';
 }
 
-async function selecionarAluno(id,nome,btn){
+async async function selecionarAluno(id,nome,btn){
   selectedAlunoId=id;
   document.querySelectorAll('.asel-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
