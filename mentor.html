@@ -1944,6 +1944,8 @@ function abrirEditarEx(id){
 
   const cats = ['Técnica','Percepção','Harmonia','Improviso','Repertório','Frases e Licks'];
   const figs = ['Semínima','Colcheia','Semicolcheia','Tercina'];
+  const comps = ['4/4','3/4','6/8','2/4','5/4','7/8'];
+  const compAtual = `${ex.compasso_num||4}/${ex.compasso_den||4}`;
 
   const form = document.createElement('div');
   form.id = 'edit-form-'+id;
@@ -2030,23 +2032,23 @@ async function toggleAutoLockMentor(exId, nome) {
 
 function irParaMontar(alunoId){
   goTab('montar');
-  renderMontarSel(); // garante que os botões de seleção existem no DOM
+  renderMontarSel();
   const a = allAlunos.find(x => x.id === alunoId);
-  if (a) {
-    // pequeno delay para o DOM atualizar
-    setTimeout(() => {
-      const btn = document.querySelector(`[onclick*="selecionarAluno('${alunoId}'"]`);
-      if (btn) {
-        selecionarAluno(alunoId, a.nome, btn);
-      } else {
-        // fallback: chama direto sem o btn
-        selectedAlunoId = alunoId;
-        document.getElementById('editor-aluno-nome').textContent = a.nome;
-        document.getElementById('montar-editor').style.display = 'block';
-        loadEditorData(alunoId);
-      }
-    }, 50);
-  }
+  if (!a) return;
+  setTimeout(() => {
+    // marca botão como ativo visualmente
+    document.querySelectorAll('.asel-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.asel-btn').forEach(b => {
+      if (b.textContent.trim() === a.nome.split(' ')[0]) b.classList.add('active');
+    });
+    // abre editor diretamente sem depender do btn
+    selectedAlunoId = alunoId;
+    const nomeEl = document.getElementById('editor-aluno-nome');
+    const editorEl = document.getElementById('montar-editor');
+    if (nomeEl) nomeEl.textContent = a.nome;
+    if (editorEl) editorEl.style.display = 'block';
+    loadEditorData(alunoId);
+  }, 80);
 }
 
 // ═══════════════════════════════════════════════════════════
