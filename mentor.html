@@ -2030,10 +2030,22 @@ async function toggleAutoLockMentor(exId, nome) {
 
 function irParaMontar(alunoId){
   goTab('montar');
-  const a=allAlunos.find(x=>x.id===alunoId);
-  if(a){
-    const btn=document.querySelector(`[onclick*="selecionarAluno('${alunoId}'"]`);
-    if(btn) selecionarAluno(alunoId,a.nome,btn);
+  renderMontarSel(); // garante que os botões de seleção existem no DOM
+  const a = allAlunos.find(x => x.id === alunoId);
+  if (a) {
+    // pequeno delay para o DOM atualizar
+    setTimeout(() => {
+      const btn = document.querySelector(`[onclick*="selecionarAluno('${alunoId}'"]`);
+      if (btn) {
+        selecionarAluno(alunoId, a.nome, btn);
+      } else {
+        // fallback: chama direto sem o btn
+        selectedAlunoId = alunoId;
+        document.getElementById('editor-aluno-nome').textContent = a.nome;
+        document.getElementById('montar-editor').style.display = 'block';
+        loadEditorData(alunoId);
+      }
+    }, 50);
   }
 }
 
