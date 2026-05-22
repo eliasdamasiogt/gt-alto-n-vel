@@ -438,6 +438,47 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
 .risk-yellow-t { color: #f0a832; }
 .risk-red-t    { color: #e05555; }
 
+
+/* ══ RESUMO DO TREINO ════════════════════════════════════ */
+.treino-resumo {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.treino-resumo-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--t3);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+.treino-resumo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.treino-resumo-duracao {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--t1);
+}
+.treino-resumo-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.cat-chip {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
 </style>
 </head>
 <body>
@@ -1006,6 +1047,7 @@ function renderAlunos() {
           <div class="it" onclick="switchInner('${a.id}','evolucao',this)">📈 Evolução</div>
         </div>
         <div class="inner-sec active" id="is-${a.id}-notas">
+          ${renderResumoTreino(a.id)}
           ${renderNotasHtml(a.id)}
           <button class="hist-btn" onclick="toggleHistorico('${a.id}')">📋 Ver histórico de anotações</button>
           <div class="hist-panel" id="hist-${a.id}">
@@ -1846,6 +1888,52 @@ async function redefinirSenha(alunoId, nome) {
   } catch(e) { showToast('⚠️ Erro: ' + e.message); }
 }
 
+
+
+// ═══════════════════════════════════════════════════════════
+// RESUMO DO TREINO NO CARD DO ALUNO
+// ═══════════════════════════════════════════════════════════
+function renderResumoTreino(alunoId) {
+  const exs = allExercicios.filter(e => e.aluno_id === alunoId);
+  if (!exs.length) return '<div style="font-size:11px;color:var(--t3)">Nenhum exercício no treino.</div>';
+
+  // duração total
+  const totalMin = exs.reduce((s, e) => s + (e.duracao_min || 0), 0);
+  const horas = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  const duracaoStr = horas > 0 ? `${horas}h ${mins}min` : `${mins} min`;
+
+  // categorias únicas com contagem
+  const catCount = {};
+  exs.forEach(e => {
+    if (e.categoria) catCount[e.categoria] = (catCount[e.categoria] || 0) + 1;
+  });
+
+  const catColors = {
+    'Técnica':        {bg:'#2e1a6e', color:'#a78bfa'},
+    'Percepção':      {bg:'#3d2e0a', color:'#fbbf24'},
+    'Harmonia':       {bg:'#0a2a3d', color:'#38bdf8'},
+    'Improviso':      {bg:'#0a3328', color:'#34d399'},
+    'Repertório':     {bg:'#3d1010', color:'#f87171'},
+    'Frases e Licks': {bg:'#3d0a2a', color:'#f472b6'},
+  };
+
+  const catsHtml = Object.entries(catCount).map(([cat, n]) => {
+    const c = catColors[cat] || {bg:'var(--bg3)', color:'var(--t2)'};
+    return `<span class="cat-chip" style="background:${c.bg};color:${c.color}">${cat} (${n})</span>`;
+  }).join('');
+
+  return `
+    <div class="treino-resumo">
+      <div class="treino-resumo-title">📋 Resumo do treino</div>
+      <div class="treino-resumo-row">
+        <span style="font-size:11px;color:var(--t2)">Duração total</span>
+        <span class="treino-resumo-duracao">⏱ ${duracaoStr}</span>
+      </div>
+      <div style="font-size:11px;color:var(--t2);margin-bottom:5px">${exs.length} exercício${exs.length > 1 ? 's' : ''}</div>
+      <div class="treino-resumo-cats">${catsHtml}</div>
+    </div>`;
+}
 
 // ═══════════════════════════════════════════════════════════
 // HISTÓRICO DE ANOTAÇÕES
