@@ -3461,32 +3461,23 @@ async function calcularStatsmes() {
 
 // ══ NOTIFICAÇÕES PENDENTES DO MENTOR ════════════════════
 async function carregarNotifPendentes() {
-  if (!alunoId) { console.log('[NOTIF] sem alunoId'); return; }
+  if (!alunoId) return;
   try {
-    console.log('[NOTIF] buscando para', alunoId);
     const res = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
-    console.log('[NOTIF] resposta:', JSON.stringify(res));
     const raw = res?.[0]?.notificacoes_pendentes;
-    console.log('[NOTIF] raw:', raw);
-    if (!raw) { console.log('[NOTIF] campo vazio'); return; }
+    if (!raw) return;
     let notifs = [];
-    try { notifs = JSON.parse(raw); } catch(e) { console.log('[NOTIF] parse erro:', e); return; }
-    console.log('[NOTIF] notifs:', notifs.length);
+    try { notifs = JSON.parse(raw); } catch(e) { return; }
     if (!notifs.length) return;
-
     setTimeout(() => {
-      notifs.forEach(n => {
-        console.log('[NOTIF] disparando:', n.title);
-        addNotificacao(n.icon || '🆕', n.title, n.msg);
-      });
-    }, 1000);
-
+      notifs.forEach(n => addNotificacao(n.icon || '🆕', n.title, n.msg));
+    }, 1200);
     await api(`alunos?id=eq.${alunoId}`, {
       method: 'PATCH',
       body: JSON.stringify({notificacoes_pendentes: null}),
       prefer: 'return=minimal'
     });
-  } catch(e) { console.warn('[NOTIF] erro:', e); }
+  } catch(e) {}
 }
 
 // ═══════════════════════════════════════════════════════════
