@@ -1256,12 +1256,12 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   <div id="recompensas-list"></div>
 
   <div class="sec-lbl">Jornada de níveis</div>
-  <div class="level-card"><div class="level-icon">🌱</div><div><div class="level-name">Iniciante</div><div class="level-desc">Primeiros acordes</div></div><div class="level-xp-lbl">0 XP</div></div>
-  <div class="level-card" id="nivel-aprendiz"><div class="level-icon">🧠</div><div><div class="level-name">Aprendiz Dedicado</div><div class="level-desc">~1 semana de treino</div></div><div class="level-xp-lbl">300 XP</div></div>
-  <div class="level-card" style="opacity:.5"><div class="level-icon">🎸</div><div><div class="level-name">Guitarrista em Formação</div><div class="level-desc">~1 mês de treino</div></div><div class="level-xp-lbl">1.000 XP</div></div>
-  <div class="level-card" style="opacity:.3"><div class="level-icon">🔥</div><div><div class="level-name">Músico Consistente</div><div class="level-desc">~2,5 meses de treino</div></div><div class="level-xp-lbl">2.500 XP</div></div>
-  <div class="level-card" style="opacity:.2"><div class="level-icon">🏆</div><div><div class="level-name">Guitarrista Completo</div><div class="level-desc">~6 meses de treino</div></div><div class="level-xp-lbl">5.000 XP</div></div>
-  <div class="level-card" style="opacity:.12"><div class="level-icon">⚡</div><div><div class="level-name">Guitarrista de Alto Nível</div><div class="level-desc">~1 ano de treino</div></div><div class="level-xp-lbl">10.000 XP</div></div>
+  <div class="level-card"><div class="level-icon">🌱</div><div><div class="level-name">Iniciante</div><div class="level-desc">O começo de tudo</div></div><div class="level-xp-lbl">0 XP</div></div>
+  <div class="level-card" id="nivel-aprendiz"><div class="level-icon">🧠</div><div><div class="level-name">Aprendiz Dedicado</div><div class="level-desc">O hábito se forma</div></div><div class="level-xp-lbl">300 XP</div></div>
+  <div class="level-card" style="opacity:.5"><div class="level-icon">🎸</div><div><div class="level-name">Guitarrista em Formação</div><div class="level-desc">Consistência em construção</div></div><div class="level-xp-lbl">1.000 XP</div></div>
+  <div class="level-card" style="opacity:.3"><div class="level-icon">🔥</div><div><div class="level-name">Músico Consistente</div><div class="level-desc">Treino virou rotina</div></div><div class="level-xp-lbl">2.500 XP</div></div>
+  <div class="level-card" style="opacity:.2"><div class="level-icon">🏆</div><div><div class="level-name">Guitarrista Completo</div><div class="level-desc">Técnica com identidade</div></div><div class="level-xp-lbl">5.000 XP</div></div>
+  <div class="level-card" style="opacity:.12"><div class="level-icon">⚡</div><div><div class="level-name">Guitarrista de Alto Nível</div><div class="level-desc">Cada nota tem intenção e excelência. Você já é um músico com Identidade, Criatividade e Propósito.</div></div><div class="level-xp-lbl">10.000 XP</div></div>
 </div>
 
 </div><!-- content -->
@@ -1515,6 +1515,7 @@ function renderProfile() {
   // XP e nível
   const nivelThresholds = [0, 300, 1000, 2500, 5000, 10000];
   const nivelNames = ['Iniciante','Aprendiz Dedicado','Guitarrista em Formação','Músico Consistente','Guitarrista Completo','Guitarrista de Alto Nível'];
+  const nivelDescs = ['O começo de tudo','O hábito se forma','Consistência em construção','Treino virou rotina','Técnica com identidade','Guitarrista de Alto Nível'];
   const curNivel = Math.min(nivel - 1, nivelNames.length - 1);
   const nextThreshold = nivelThresholds[Math.min(nivel, nivelThresholds.length-1)] || 5000;
   const prevThreshold = nivelThresholds[curNivel] || 0;
@@ -1649,13 +1650,15 @@ function renderTreino() {
 
 function isNewEx(ex) {
   if (!ex.created_at) return false;
-  // some se o aluno já tem qualquer registro para este exercício
-  if (registros[ex.id] && (registros[ex.id].concluido || registros[ex.id].bpm_hoje || registros[ex.id].dificuldade)) return false;
-  // some após 3 dias independentemente
   const created = new Date(ex.created_at);
   const agora = new Date();
-  const diffDias = (agora - created) / (1000 * 60 * 60 * 24);
-  return diffDias <= 3;
+  const diffHoras = (agora - created) / (1000 * 60 * 60);
+  // some após 24h — aluno teve tempo de ver
+  if (diffHoras > 24) return false;
+  // some se já tem registro real no banco (qualquer interação)
+  const reg = registros[ex.id];
+  if (reg && reg.id) return false; // registro real salvo no banco
+  return true;
 }
 
 function buildExCard(ex) {
