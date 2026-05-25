@@ -851,7 +851,15 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
       </div>
     </div>
     <div class="form-group"><label class="form-label">Link do material</label><input class="form-input" id="des-link" placeholder="YouTube, Drive..."></div>
-    <div class="form-group"><label class="form-label">Bônus XP</label><input class="form-input" id="des-xp" type="number" value="25"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Bônus XP</label><input class="form-input" id="des-xp" type="number" value="25"></div>
+      <div class="form-group"><label class="form-label">Ícone</label><input class="form-input" id="des-icone" placeholder="🏆" maxlength="2" value="🏆"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tarefas (opcional) — uma por linha, ex: "Praticar 10 min | 2"</label>
+      <textarea class="form-input" id="des-tarefas" rows="3" placeholder="Praticar 10 min | 2&#10;Postar vídeo nos stories | 3&#10;Enviar gravação para o mentor | 3"></textarea>
+      <div style="font-size:10px;color:var(--t3);margin-top:3px">Formato: descrição | XP (ex: "Praticar 10 min | 2")</div>
+    </div>
     <div style="display:flex;gap:8px;margin-top:8px">
       <button class="btn-primary" onclick="salvarDesafio()">✓ Criar desafio</button>
       <button class="btn-sm" onclick="fecharFormDesafio()">Cancelar</button>
@@ -2079,10 +2087,12 @@ async function salvarDesafio() {
   const semana = getSemanaAtualMentor();
   if (!alunoId || !titulo) { showToast('⚠️ Preencha aluno e título.'); return; }
 
+  const icone = document.getElementById('des-icone')?.value.trim() || '🏆';
   const payload = {
     aluno_id: alunoId,
     titulo,
     semana,
+    icone,
     descricao: document.getElementById('des-desc')?.value.trim() || null,
     bpm: parseInt(document.getElementById('des-bpm')?.value) || null,
     tonalidade: document.getElementById('des-tom')?.value.trim() || null,
@@ -2109,6 +2119,25 @@ async function salvarDesafio() {
     });
     document.getElementById('des-xp').value = '25';
     showToast('✅ Desafio criado!');
+
+    // salvar tarefas
+    const tarefasRaw = document.getElementById('des-tarefas')?.value.trim();
+    if (tarefasRaw && res?.[0]?.id) {
+      const linhas = tarefasRaw.split('\n').filter(l => l.trim());
+      for (const linha of linhas) {
+        const parts = linha.split('|');
+        const titulo = parts[0].trim();
+        const xp = parseInt(parts[1]?.trim()) || 2;
+        if (titulo) {
+          await api('desafio_tarefas', {
+            method: 'POST',
+            body: JSON.stringify({desafio_id: res[0].id, titulo, xp_bonus: xp}),
+            prefer: 'return=minimal'
+          }).catch(() => {});
+        }
+      }
+    }
+    document.getElementById('des-tarefas').value = '';
 
     // notificar aluno
     try {
