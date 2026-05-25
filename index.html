@@ -885,6 +885,81 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   50%      { box-shadow: 0 0 14px rgba(34,199,138,.9); }
 }
 
+
+/* ══ DESAFIO SEMANAL ═════════════════════════════════════ */
+.desafio-section { margin-bottom: 16px; }
+.desafio-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: #f0a832;
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.desafio-card {
+  background: linear-gradient(135deg, #1a1500 0%, #1c1a06 100%);
+  border: 1.5px solid #f0a832;
+  border-radius: 14px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(240,168,50,.12);
+}
+.desafio-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #f0a832, transparent);
+  opacity: .7;
+}
+.desafio-card.concluido {
+  border-color: #22c78a;
+  background: linear-gradient(135deg, #001a0f 0%, #011a10 100%);
+  box-shadow: 0 0 20px rgba(34,199,138,.1);
+  opacity: .75;
+}
+.desafio-card.concluido::before {
+  background: linear-gradient(90deg, transparent, #22c78a, transparent);
+}
+.desafio-crown { font-size: 20px; margin-bottom: 6px; }
+.desafio-titulo {
+  font-size: 14px; font-weight: 600; color: #fcd490;
+  margin-bottom: 4px;
+}
+.desafio-card.concluido .desafio-titulo { color: #7eecc4; }
+.desafio-desc {
+  font-size: 11px; color: #9e8855; line-height: 1.6; margin-bottom: 10px;
+}
+.desafio-pills {
+  display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.desafio-pill {
+  font-size: 10px; padding: 2px 8px; border-radius: 20px;
+  background: rgba(240,168,50,.12); color: #f0a832;
+  border: 1px solid rgba(240,168,50,.25);
+}
+.desafio-xp {
+  font-size: 11px; font-weight: 700; color: #f0a832;
+  margin-bottom: 10px;
+}
+.desafio-card.concluido .desafio-xp { color: #22c78a; }
+.desafio-link {
+  font-size: 11px; color: #f0a832; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-bottom: 10px;
+}
+.desafio-check-btn {
+  width: 100%; padding: 10px;
+  background: linear-gradient(135deg, #b37a00, #d4940a);
+  color: #fff; border: none; border-radius: 10px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: opacity .15s;
+}
+.desafio-check-btn:hover { opacity: .88; }
+.desafio-concluido-badge {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 600; color: #22c78a;
+  padding: 8px 0;
+}
+
 </style>
 </head>
 <body>
@@ -1087,6 +1162,9 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
     <span style="margin-left:auto" id="prog-label">0 de 0 concluídos</span>
   </div>
   <div class="prog-wrap"><div class="prog-fill" id="prog-bar" style="width:0%"></div></div>
+  <!-- DESAFIO SEMANAL -->
+  <div class="desafio-section" id="desafio-section" style="display:none"></div>
+
   <div id="exercises-container">
     <div class="empty-state">
       <div class="empty-state-icon">🏋️</div>
@@ -1440,6 +1518,7 @@ async function init() {
     loadNotificacoes();
     // verifica notificações pendentes enviadas pelo mentor
     await carregarNotifPendentes();
+    await loadDesafio();
     window._primeiroLoad = true; // bloqueia celebration durante carregamento inicial
     renderProfile();
     renderTreino();
@@ -3481,6 +3560,97 @@ async function carregarNotifPendentes() {
       prefer: 'return=minimal'
     });
   } catch(e) {}
+}
+
+
+// ═══════════════════════════════════════════════════════════
+// DESAFIO SEMANAL
+// ═══════════════════════════════════════════════════════════
+let desafioData = null;
+
+function getSemanaAtual() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${String(week).padStart(2,'0')}`;
+}
+
+async function loadDesafio() {
+  try {
+    const semana = getSemanaAtual();
+    const res = await api(
+      `desafios_semanais?aluno_id=eq.${alunoId}&semana=eq.${semana}&ativo=eq.true&limit=1`
+    );
+    desafioData = res?.[0] || null;
+    renderDesafio();
+  } catch(e) { console.warn('Desafio:', e); }
+}
+
+function renderDesafio() {
+  const section = document.getElementById('desafio-section');
+  if (!section) return;
+
+  if (!desafioData) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  const d = desafioData;
+  const concluido = d.concluido;
+
+  const pills = [];
+  if (d.bpm) pills.push(`🎵 ${d.bpm} BPM`);
+  if (d.tonalidade) pills.push(`🎸 ${d.tonalidade}`);
+  if (d.figura_ritmica) pills.push(d.figura_ritmica);
+
+  section.innerHTML = `
+    <div class="desafio-section-title">⚡ Desafio da Semana</div>
+    <div class="desafio-card${concluido ? ' concluido' : ''}">
+      <div class="desafio-crown">${concluido ? '✅' : '🏆'}</div>
+      <div class="desafio-titulo">${d.titulo}</div>
+      ${d.descricao ? `<div class="desafio-desc">${d.descricao}</div>` : ''}
+      ${pills.length ? `<div class="desafio-pills">${pills.map(p=>`<span class="desafio-pill">${p}</span>`).join('')}</div>` : ''}
+      <div class="desafio-xp">${concluido ? '✅ +' + d.xp_bonus + ' XP conquistados!' : '⚡ +' + d.xp_bonus + ' XP ao concluir'}</div>
+      ${d.link_material ? `<div><a class="desafio-link" href="${d.link_material}" target="_blank">📄 Ver material ↗</a></div>` : ''}
+      ${concluido
+        ? `<div class="desafio-concluido-badge">🎉 Desafio concluído esta semana!</div>`
+        : `<button class="desafio-check-btn" onclick="concluirDesafio()">✓ Marcar como concluído</button>`
+      }
+    </div>`;
+}
+
+async function concluirDesafio() {
+  if (!desafioData || desafioData.concluido) return;
+  try {
+    await api(`desafios_semanais?id=eq.${desafioData.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({concluido: true, concluido_em: new Date().toISOString()}),
+      prefer: 'return=minimal'
+    });
+    desafioData.concluido = true;
+
+    // +XP bônus
+    const xpBonus = desafioData.xp_bonus || 25;
+    const xpNovo = (alunoData?.xp || 0) + xpBonus;
+    const nivelThresholds = [0, 300, 1000, 2500, 5000, 10000];
+    let novoNivel = 1;
+    for (let i = nivelThresholds.length - 1; i >= 0; i--) {
+      if (xpNovo >= nivelThresholds[i]) { novoNivel = i + 1; break; }
+    }
+    await api(`alunos?id=eq.${alunoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({xp: xpNovo, nivel: novoNivel}),
+      prefer: 'return=minimal'
+    });
+    alunoData.xp = xpNovo;
+    alunoData.nivel = novoNivel;
+
+    renderDesafio();
+    renderProfile();
+    showToast(`🏆 Desafio concluído! +${xpBonus} XP`);
+
+    // animação de celebração
+    startConf();
+    setTimeout(() => document.getElementById('celebration')?.classList.remove('show'), 2000);
+  } catch(e) { showToast('⚠️ Erro ao salvar. Tente novamente.'); }
 }
 
 // ═══════════════════════════════════════════════════════════

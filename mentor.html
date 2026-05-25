@@ -479,6 +479,27 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   font-weight: 500;
 }
 
+
+/* ══ DESAFIOS SEMANAIS MENTOR ════════════════════════════ */
+.desafio-mentor-card {
+  background: linear-gradient(135deg, #1a1500, #1c1a06);
+  border: 1.5px solid #f0a832;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+}
+.desafio-mentor-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.desafio-mentor-titulo { font-size: 13px; font-weight: 600; color: #fcd490; }
+.desafio-mentor-meta { font-size: 10px; color: #9e8855; margin-top: 3px; }
+.desafio-mentor-actions { display: flex; gap: 6px; }
+.btn-desafio { font-size: 11px; padding: 4px 10px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg2); color: var(--t2); cursor: pointer; transition: all .15s; }
+.btn-desafio:hover { background: var(--bg3); color: var(--t1); }
+.btn-desafio-danger { border-color: var(--re); color: var(--ret); }
+.btn-desafio-danger:hover { background: var(--re3); }
+
 </style>
 </head>
 <body>
@@ -515,6 +536,9 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="sidebar-divider"></div>
   <div class="sidebar-item" id="sb-biblioteca" onclick="goTab('biblioteca')">
     <span class="sidebar-item-icon">◫</span> Biblioteca
+  </div>
+  <div class="sidebar-item" id="sb-desafios" onclick="goTab('desafios')">
+    <span>⚡</span><span>Desafios</span>
   </div>
   <div class="sidebar-item" id="sb-videos" onclick="goTab('videos')">
     <span class="sidebar-item-icon">▶</span> Vídeos
@@ -563,6 +587,7 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="tab" onclick="goTab('montar')">✏️ Montar treino</div>
   <div class="tab" onclick="goTab('novo')">➕ Novo aluno</div>
   <div class="tab" onclick="goTab('biblioteca')">📚 Biblioteca</div>
+  <div class="tab" onclick="goTab('desafios')">⚡ Desafios</div>
   <div class="tab" onclick="goTab('videos')">🎬 Vídeos <span id="videos-badge" style="display:none;background:var(--re);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:3px"></span></div>
   <div class="tab" onclick="goTab('visao')">📊 Visão geral</div>
 </div>
@@ -800,6 +825,39 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
 
   <div class="bib-count" id="bib-count"></div>
   <div id="bib-list"></div>
+</div>
+
+<!-- SEÇÃO DESAFIOS -->
+<div id="desafios" class="sec" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:500;color:var(--t1)">⚡ Desafios Semanais</div>
+    <button class="btn" onclick="abrirFormDesafio()" style="background:var(--am3);border-color:var(--am);color:var(--amt)">+ Novo desafio</button>
+  </div>
+  <div class="add-form" id="form-desafio" style="display:none;margin-bottom:16px">
+    <div style="font-size:12px;font-weight:500;color:var(--t1);margin-bottom:10px">Novo Desafio Semanal</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label class="form-label">Aluno</label><select class="form-input" id="des-aluno"></select></div>
+      <div class="form-group"><label class="form-label">Semana</label><input class="form-input" id="des-semana" placeholder="ex: 2026-W21"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="des-titulo" placeholder="ex: Tocar Sultans of Swing no tempo"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="des-desc" rows="2" placeholder="Instruções, dicas..."></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">BPM</label><input class="form-input" id="des-bpm" type="number" placeholder="120"></div>
+      <div class="form-group"><label class="form-label">Tonalidade</label><input class="form-input" id="des-tom" placeholder="Am"></div>
+      <div class="form-group"><label class="form-label">Figura</label>
+        <select class="form-input" id="des-fig">
+          <option value="">—</option><option>Semínima</option><option>Colcheia</option><option>Semicolcheia</option><option>Tercina</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Link do material</label><input class="form-input" id="des-link" placeholder="YouTube, Drive..."></div>
+    <div class="form-group"><label class="form-label">Bônus XP</label><input class="form-input" id="des-xp" type="number" value="25"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn-primary" onclick="salvarDesafio()">✓ Criar desafio</button>
+      <button class="btn-sm" onclick="fecharFormDesafio()">Cancelar</button>
+    </div>
+  </div>
+  <div id="desafios-list"><div class="empty-state">Carregando...</div></div>
 </div>
 
 <!-- ══ VÍDEOS ══════════════════════════════════════════════ -->
@@ -1935,6 +1993,167 @@ function renderResumoTreino(alunoId) {
     </div>`;
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// DESAFIOS SEMANAIS — MENTOR
+// ═══════════════════════════════════════════════════════════
+let todosDesafios = [];
+
+async function loadDesafios() {
+  try {
+    todosDesafios = await api('desafios_semanais?order=created_at.desc');
+    renderDesafiosList();
+    // popular select de alunos no form
+    const sel = document.getElementById('des-aluno');
+    if (sel && allAlunos.length) {
+      sel.innerHTML = allAlunos.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+    }
+    // popular semana atual
+    const semInput = document.getElementById('des-semana');
+    if (semInput && !semInput.value) semInput.value = getSemanaAtualMentor();
+  } catch(e) { console.warn('loadDesafios:', e); }
+}
+
+function getSemanaAtualMentor() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${String(week).padStart(2,'0')}`;
+}
+
+function renderDesafiosList() {
+  const list = document.getElementById('desafios-list');
+  if (!list) return;
+  if (!todosDesafios.length) {
+    list.innerHTML = '<div class="empty-state">Nenhum desafio criado ainda.</div>';
+    return;
+  }
+  list.innerHTML = todosDesafios.map(d => {
+    const aluno = allAlunos.find(a => a.id === d.aluno_id);
+    const pills = [
+      d.bpm ? `🎵 ${d.bpm} BPM` : null,
+      d.tonalidade ? `🎸 ${d.tonalidade}` : null,
+      d.figura_ritmica || null,
+    ].filter(Boolean);
+    return `
+    <div class="desafio-mentor-card" id="dcard-${d.id}">
+      <div class="desafio-mentor-header">
+        <div>
+          <div class="desafio-mentor-titulo">🏆 ${d.titulo}</div>
+          <div class="desafio-mentor-meta">
+            ${aluno?.nome || 'Aluno'} · ${d.semana} · +${d.xp_bonus} XP
+            ${d.concluido ? ' · <span style="color:#22c78a">✅ Concluído</span>' : ''}
+            ${!d.ativo ? ' · <span style="color:var(--t3)">Inativo</span>' : ''}
+          </div>
+        </div>
+        <div class="desafio-mentor-actions">
+          <button class="btn-desafio" onclick="toggleDesafioAtivo('${d.id}',${!d.ativo})">${d.ativo ? '⏸ Pausar' : '▶ Ativar'}</button>
+          <button class="btn-desafio btn-desafio-danger" onclick="deletarDesafio('${d.id}')">🗑</button>
+        </div>
+      </div>
+      ${d.descricao ? `<div style="font-size:11px;color:#9e8855;margin-bottom:6px">${d.descricao}</div>` : ''}
+      ${pills.length ? `<div style="display:flex;gap:5px;flex-wrap:wrap">${pills.map(p=>`<span class="desafio-pill" style="background:rgba(240,168,50,.1);color:#f0a832;border:1px solid rgba(240,168,50,.2);font-size:10px;padding:2px 7px;border-radius:20px">${p}</span>`).join('')}</div>` : ''}
+      ${d.link_material ? `<div style="margin-top:6px"><a href="${d.link_material}" target="_blank" style="font-size:11px;color:#f0a832">📄 Ver material ↗</a></div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function abrirFormDesafio() {
+  const form = document.getElementById('form-desafio');
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  // popular select de alunos
+  const sel = document.getElementById('des-aluno');
+  if (sel) sel.innerHTML = allAlunos.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+  const semInput = document.getElementById('des-semana');
+  if (semInput && !semInput.value) semInput.value = getSemanaAtualMentor();
+}
+
+function fecharFormDesafio() {
+  const form = document.getElementById('form-desafio');
+  if (form) form.style.display = 'none';
+}
+
+async function salvarDesafio() {
+  const alunoId = document.getElementById('des-aluno')?.value;
+  const titulo = document.getElementById('des-titulo')?.value.trim();
+  const semana = document.getElementById('des-semana')?.value.trim();
+  if (!alunoId || !titulo || !semana) { showToast('⚠️ Preencha aluno, título e semana.'); return; }
+
+  const payload = {
+    aluno_id: alunoId,
+    titulo,
+    semana,
+    descricao: document.getElementById('des-desc')?.value.trim() || null,
+    bpm: parseInt(document.getElementById('des-bpm')?.value) || null,
+    tonalidade: document.getElementById('des-tom')?.value.trim() || null,
+    figura_ritmica: document.getElementById('des-fig')?.value || null,
+    link_material: document.getElementById('des-link')?.value.trim() || null,
+    xp_bonus: parseInt(document.getElementById('des-xp')?.value) || 25,
+    ativo: true,
+    concluido: false,
+  };
+
+  try {
+    const res = await api('desafios_semanais', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      prefer: 'return=representation'
+    });
+    if (res?.[0]) todosDesafios.unshift(res[0]);
+    renderDesafiosList();
+    fecharFormDesafio();
+    // limpar form
+    ['des-titulo','des-desc','des-bpm','des-tom','des-link'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    document.getElementById('des-xp').value = '25';
+    showToast('✅ Desafio criado!');
+
+    // notificar aluno
+    try {
+      const alunoData = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
+      let notifs = [];
+      try { notifs = JSON.parse(alunoData?.[0]?.notificacoes_pendentes || '[]'); } catch(e) {}
+      notifs.push({
+        id: Date.now(), icon: '⚡',
+        title: 'Novo desafio da semana!',
+        msg: `"${titulo}" — conclua até o fim da semana e ganhe +${payload.xp_bonus} XP!`,
+        time: new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+      });
+      await api(`alunos?id=eq.${alunoId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({notificacoes_pendentes: JSON.stringify(notifs)}),
+        prefer: 'return=minimal'
+      });
+    } catch(e) {}
+  } catch(e) { showToast('⚠️ Erro ao criar desafio.'); }
+}
+
+async function toggleDesafioAtivo(id, novoAtivo) {
+  try {
+    await api(`desafios_semanais?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ativo: novoAtivo}),
+      prefer: 'return=minimal'
+    });
+    const d = todosDesafios.find(x => x.id === id);
+    if (d) d.ativo = novoAtivo;
+    renderDesafiosList();
+    showToast(novoAtivo ? '▶ Desafio ativado' : '⏸ Desafio pausado');
+  } catch(e) { showToast('⚠️ Erro.'); }
+}
+
+async function deletarDesafio(id) {
+  if (!confirm('Apagar este desafio?')) return;
+  try {
+    await api(`desafios_semanais?id=eq.${id}`, {method: 'DELETE'});
+    todosDesafios = todosDesafios.filter(x => x.id !== id);
+    renderDesafiosList();
+    showToast('🗑 Desafio apagado.');
+  } catch(e) { showToast('⚠️ Erro.'); }
+}
+
 // ═══════════════════════════════════════════════════════════
 // HISTÓRICO DE ANOTAÇÕES
 // ═══════════════════════════════════════════════════════════
@@ -2243,7 +2462,7 @@ function renderVisao(){
 function goTab(id){
   // tabs mobile
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
-  const map={alunos:0,montar:1,novo:2,biblioteca:3,videos:4,visao:5};
+  const map={alunos:0,montar:1,novo:2,biblioteca:3,desafios:4,videos:5,visao:6};
   if(map[id]!==undefined) document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
   // sidebar desktop
   document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
