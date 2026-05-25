@@ -837,7 +837,7 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
     <div style="font-size:12px;font-weight:500;color:var(--t1);margin-bottom:10px">Novo Desafio Semanal</div>
     <div class="form-row">
       <div class="form-group" style="flex:2"><label class="form-label">Aluno</label><select class="form-input" id="des-aluno"></select></div>
-      <div class="form-group"><label class="form-label">Semana</label><input class="form-input" id="des-semana" placeholder="ex: 2026-W21"></div>
+      <input type="hidden" id="des-semana">
     </div>
     <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="des-titulo" placeholder="ex: Tocar Sultans of Swing no tempo"></div>
     <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="des-desc" rows="2" placeholder="Instruções, dicas..."></textarea></div>
@@ -2041,7 +2041,7 @@ function renderDesafiosList() {
         <div>
           <div class="desafio-mentor-titulo">🏆 ${d.titulo}</div>
           <div class="desafio-mentor-meta">
-            ${aluno?.nome || 'Aluno'} · ${d.semana} · +${d.xp_bonus} XP
+            ${aluno?.nome || 'Aluno'} · ${new Date(d.created_at).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'})} · +${d.xp_bonus} XP
             ${d.concluido ? ' · <span style="color:#22c78a">✅ Concluído</span>' : ''}
             ${!d.ativo ? ' · <span style="color:var(--t3)">Inativo</span>' : ''}
           </div>
@@ -2076,8 +2076,8 @@ function fecharFormDesafio() {
 async function salvarDesafio() {
   const alunoId = document.getElementById('des-aluno')?.value;
   const titulo = document.getElementById('des-titulo')?.value.trim();
-  const semana = document.getElementById('des-semana')?.value.trim();
-  if (!alunoId || !titulo || !semana) { showToast('⚠️ Preencha aluno, título e semana.'); return; }
+  const semana = getSemanaAtualMentor();
+  if (!alunoId || !titulo) { showToast('⚠️ Preencha aluno e título.'); return; }
 
   const payload = {
     aluno_id: alunoId,

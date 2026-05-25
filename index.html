@@ -3578,9 +3578,16 @@ function getSemanaAtual() {
 async function loadDesafio() {
   try {
     const semana = getSemanaAtual();
-    const res = await api(
+    // busca desafio da semana atual OU o mais recente ativo (fallback)
+    let res = await api(
       `desafios_semanais?aluno_id=eq.${alunoId}&semana=eq.${semana}&ativo=eq.true&limit=1`
     );
+    if (!res?.length) {
+      // fallback: pega o desafio ativo mais recente
+      res = await api(
+        `desafios_semanais?aluno_id=eq.${alunoId}&ativo=eq.true&order=created_at.desc&limit=1`
+      );
+    }
     desafioData = res?.[0] || null;
     renderDesafio();
   } catch(e) { console.warn('Desafio:', e); }
