@@ -2008,8 +2008,9 @@ function renderResumoTreino(alunoId) {
 let todosDesafios = [];
 
 async function loadDesafios() {
+  const list = document.getElementById('desafios-list');
   try {
-    todosDesafios = await api('desafios_semanais?order=created_at.desc');
+    todosDesafios = await api('desafios_semanais?order=created_at.desc&select=*');
     renderDesafiosList();
     // popular select de alunos no form
     const sel = document.getElementById('des-aluno');
@@ -2019,7 +2020,10 @@ async function loadDesafios() {
     // popular semana atual
     const semInput = document.getElementById('des-semana');
     if (semInput && !semInput.value) semInput.value = getSemanaAtualMentor();
-  } catch(e) { console.warn('loadDesafios:', e); }
+  } catch(e) {
+    console.warn('loadDesafios erro:', e);
+    if (list) list.innerHTML = `<div class="empty-state" style="color:var(--ret)">⚠️ Erro ao carregar: ${e.message}</div>`;
+  }
 }
 
 function getSemanaAtualMentor() {
