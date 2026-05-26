@@ -2009,8 +2009,12 @@ let todosDesafios = [];
 
 async function loadDesafios() {
   const list = document.getElementById('desafios-list');
+  if (list) list.innerHTML = '<div class="empty-state">Buscando desafios...</div>';
   try {
-    todosDesafios = await api('desafios_semanais?order=created_at.desc&select=id,aluno_id,titulo,descricao,bpm,tonalidade,figura_ritmica,link_material,xp_bonus,semana,concluido,ativo,icone,created_at');
+    console.log('[DESAFIOS] iniciando busca...');
+    const url = 'desafios_semanais?order=created_at.desc&select=id,aluno_id,titulo,descricao,bpm,tonalidade,figura_ritmica,link_material,xp_bonus,semana,concluido,ativo,icone,created_at';
+    todosDesafios = await api(url);
+    console.log('[DESAFIOS] resultado:', JSON.stringify(todosDesafios));
     renderDesafiosList();
     // popular select de alunos no form
     const sel = document.getElementById('des-aluno');
