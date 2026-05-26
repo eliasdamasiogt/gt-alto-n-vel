@@ -3605,11 +3605,11 @@ async function loadDesafio() {
   try {
     const semana = getSemanaAtual();
     let res = await api(
-      `desafios_semanais?aluno_id=eq.${alunoId}&semana=eq.${semana}&ativo=eq.true&limit=1`
+      `desafios_semanais?aluno_id=eq.${alunoId}&semana=eq.${semana}&ativo=eq.true&limit=1&select=id,aluno_id,titulo,descricao,bpm,tonalidade,figura_ritmica,link_material,xp_bonus,semana,concluido,ativo,icone,created_at`
     );
     if (!res?.length) {
       res = await api(
-        `desafios_semanais?aluno_id=eq.${alunoId}&ativo=eq.true&order=created_at.desc&limit=1`
+        `desafios_semanais?aluno_id=eq.${alunoId}&ativo=eq.true&order=created_at.desc&limit=1&select=id,aluno_id,titulo,descricao,bpm,tonalidade,figura_ritmica,link_material,xp_bonus,semana,concluido,ativo,icone,created_at`
       );
     }
     desafioData = res?.[0] || null;
