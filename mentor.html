@@ -2508,6 +2508,10 @@ function goTab(id){
   // conteúdo
   document.querySelectorAll('.sec').forEach(s=>{s.classList.remove('active');s.style.display='none';});
   const s=document.getElementById(id);if(s){s.classList.add('active');s.style.display='block';}
+  // carrega dados da aba
+  if(id==='videos') loadVideos();
+  if(id==='desafios') loadDesafios();
+  if(id==='biblioteca') loadBiblioteca();
 }
 
 let toastTimer=null;
