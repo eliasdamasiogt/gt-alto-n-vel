@@ -1502,20 +1502,21 @@ async function init() {
     const regs = await api(`registros_diarios?aluno_id=eq.${alunoId}&data=eq.${TODAY}`);
     regs.forEach(r => { registros[r.exercicio_id] = r; });
 
-    // para exercícios sem registro hoje, busca o último BPM registrado
-    // garante continuidade ao reativar exercício após pausa
+    // para TODOS os exercícios, busca o último BPM registrado (de qualquer dia anterior a hoje)
+    // isso garante que o BPM não reseta ao abrir num novo dia
     for (const ex of exercicios) {
-      if (!registros[ex.id] && ex.bpm_inicial) {
-        try {
-          const ultReg = await api(
-            `registros_diarios?aluno_id=eq.${alunoId}&exercicio_id=eq.${ex.id}&bpm_hoje=not.is.null&order=data.desc&limit=1&select=bpm_hoje`
-          );
-          if (ultReg?.[0]?.bpm_hoje) {
-            registros[ex.id] = registros[ex.id] || {};
+      try {
+        const ultReg = await api(
+          `registros_diarios?aluno_id=eq.${alunoId}&exercicio_id=eq.${ex.id}&bpm_hoje=not.is.null&data=lt.${TODAY}&order=data.desc&limit=1&select=bpm_hoje`
+        );
+        if (ultReg?.[0]?.bpm_hoje) {
+          registros[ex.id] = registros[ex.id] || {};
+          // só usa o BPM anterior se o registro de hoje não tiver BPM salvo ainda
+          if (!registros[ex.id].bpm_hoje) {
             registros[ex.id]._bpm_retomada = ultReg[0].bpm_hoje;
           }
-        } catch(e) {}
-      }
+        }
+      } catch(e) {}
     }
 
     // carrega repertório
