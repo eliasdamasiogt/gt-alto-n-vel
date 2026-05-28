@@ -973,6 +973,117 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
   0%,100% { opacity:1; filter:drop-shadow(0 0 5px #f0a832); }
   50%      { opacity:.35; filter:none; }
 }
+
+/* ══ AULAS SEMANAIS ══════════════════════════════════════ */
+.aulas-sec-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--pu);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.aulas-count { font-size: 10px; color: var(--t3); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+.aula-card {
+  background: var(--bg1); border: 1px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin-bottom: 12px;
+  transition: border-color .2s;
+}
+.aula-card.assistida { opacity: .6; }
+.aula-thumb-wrap {
+  position: relative; width: 100%; padding-top: 56.25%;
+  background: var(--bg2); cursor: pointer; overflow: hidden;
+}
+.aula-thumb {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; transition: transform .3s;
+}
+.aula-thumb-wrap:hover .aula-thumb { transform: scale(1.03); }
+.aula-play-overlay {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.3); transition: background .2s;
+}
+.aula-thumb-wrap:hover .aula-play-overlay { background: rgba(0,0,0,.15); }
+.aula-play-btn {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: rgba(0,0,0,.7); border: 2px solid rgba(255,255,255,.9);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .2s, background .2s;
+}
+.aula-thumb-wrap:hover .aula-play-btn { transform: scale(1.1); background: rgba(139,127,245,.85); }
+.aula-play-btn svg { fill: white; margin-left: 4px; }
+.aula-semana-badge {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(0,0,0,.75); backdrop-filter: blur(4px);
+  color: var(--put); font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px; border: 1px solid rgba(139,127,245,.4);
+}
+.aula-nova-badge {
+  position: absolute; top: 10px; right: 10px;
+  background: var(--te2, #1aaa74); color: #fff;
+  font-size: 9px; font-weight: 800; letter-spacing: .5px;
+  padding: 3px 8px; border-radius: 20px;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%,100%{ box-shadow: 0 0 0 0 rgba(34,199,138,.4); }
+  50%{ box-shadow: 0 0 0 6px rgba(34,199,138,0); }
+}
+.aula-body { padding: 14px 14px 12px; }
+.aula-titulo { font-size: 14px; font-weight: 600; color: var(--t1); margin-bottom: 4px; line-height: 1.4; }
+.aula-desc { font-size: 12px; color: var(--t2); line-height: 1.6; margin-bottom: 12px; }
+.aula-nota-label { font-size: 10px; color: var(--t3); font-weight: 500; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px; }
+.aula-nota {
+  width: 100%; background: var(--bg2); border: 1px solid var(--border2);
+  border-radius: 9px; color: var(--t1); font-size: 12px; font-family: inherit;
+  padding: 9px 11px; resize: none; min-height: 72px; line-height: 1.6;
+  transition: border-color .15s;
+}
+.aula-nota:focus { outline: none; border-color: var(--pu); }
+.aula-nota::placeholder { color: var(--t3); }
+.aula-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-assistir {
+  flex: 1; padding: 10px; background: var(--pu2); color: #fff;
+  border: none; border-radius: 10px; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-assistir:hover { opacity: .88; }
+.btn-assistida {
+  flex: 1; padding: 10px; background: var(--te3); color: var(--tet);
+  border: 1px solid var(--te); border-radius: 10px;
+  font-size: 13px; font-weight: 600; text-align: center;
+}
+.btn-salvar-nota {
+  padding: 10px 14px; background: var(--bg3); color: var(--t2);
+  border: 1px solid var(--border2); border-radius: 10px;
+  font-size: 12px; cursor: pointer; transition: all .15s;
+}
+.btn-salvar-nota:hover { background: var(--bg2); color: var(--t1); }
+.historico-toggle {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0; cursor: pointer;
+  border-top: 1px solid var(--border); margin-top: 4px;
+}
+.historico-toggle-label { font-size: 11px; color: var(--t3); flex: 1; }
+.hist-chev { font-size: 10px; color: var(--t3); transition: transform .2s; }
+.hist-chev.open { transform: rotate(180deg); }
+.historico-list { display: none; }
+.historico-list.open { display: block; }
+.aula-card-compact {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: var(--bg1);
+  border: 1px solid var(--border); border-radius: 10px;
+  margin-bottom: 8px; opacity: .55; cursor: pointer; transition: opacity .2s;
+}
+.aula-card-compact:hover { opacity: .85; }
+.aula-thumb-mini {
+  width: 60px; height: 34px; border-radius: 6px;
+  object-fit: cover; flex-shrink: 0; background: var(--bg3);
+}
+.aula-compact-info { flex: 1; min-width: 0; }
+.aula-compact-titulo { font-size: 12px; font-weight: 500; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aula-compact-semana { font-size: 10px; color: var(--t3); }
+.aula-compact-badge { font-size: 10px; color: var(--tet); flex-shrink: 0; }
+
 </style>
 </head>
 <body>
@@ -1157,6 +1268,7 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 <div class="tabs" id="main-tabs">
   <div class="tab active" onclick="goTab('treino')">🏋️ Treino</div>
   <div class="tab" onclick="goTab('repertorio')">🎵 Repertório</div>
+  <div class="tab" onclick="goTab('aulas')" id="tab-aulas">🎓 Aulas</div>
   <div class="tab" onclick="goTab('perfil')">👤 Perfil</div>
 </div>
 
@@ -1271,6 +1383,31 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
         </div>
       </div>
       <button class="btn-sm" style="margin-top:8px;width:100%;justify-content:center" onclick="toggleAddForm('improviso')">+ Adicionar backing</button>
+    </div>
+  </div>
+</div>
+
+<!-- AULAS SEMANAIS -->
+<div id="aulas" class="sec" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+    <div>
+      <div style="font-size:16px;font-weight:600;color:var(--t1)">🎓 Aulas</div>
+      <div style="font-size:11px;color:var(--t3)">Conteúdo Semanal</div>
+    </div>
+  </div>
+  <div style="margin-top:14px">
+    <div class="aulas-sec-title">
+      <span>📺 Disponíveis</span>
+      <span class="aulas-count" id="aulas-count"></span>
+    </div>
+    <div id="aulas-ativas-list"></div>
+    <div id="aulas-historico-wrap" style="display:none">
+      <div class="historico-toggle" onclick="toggleAulasHistorico()">
+        <span style="font-size:14px">📚</span>
+        <span class="historico-toggle-label" id="hist-aulas-label">Aulas anteriores</span>
+        <span class="hist-chev" id="hist-aulas-chev">▼</span>
+      </div>
+      <div class="historico-list" id="aulas-historico-list"></div>
     </div>
   </div>
 </div>
@@ -3742,6 +3879,186 @@ async function concluirDesafio() {
   } catch(e) { showToast('⚠️ Erro ao salvar. Tente novamente.'); }
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// AULAS SEMANAIS
+// ═══════════════════════════════════════════════════════════
+let aulasData = [];
+
+function getYoutubeThumbnail(url) {
+  if (!url) return '';
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : '';
+}
+
+function getYoutubeId(url) {
+  if (!url) return '';
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : '';
+}
+
+async function loadAulas() {
+  try {
+    aulasData = await api(`aulas_semanais?aluno_id=eq.${alunoId}&ativo=eq.true&order=created_at.desc&select=*`);
+    renderAulas();
+    // badge na aba se houver aulas novas
+    const novas = aulasData.filter(a => !a.assistida).length;
+    const tabAulas = document.getElementById('tab-aulas');
+    if (tabAulas && novas > 0) {
+      tabAulas.innerHTML = `🎓 Aulas <span style="background:var(--re);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:3px">${novas}</span>`;
+    }
+  } catch(e) { console.warn('loadAulas:', e); }
+}
+
+function renderAulas() {
+  const ativas = aulasData.filter(a => !a.assistida);
+  const assistidas = aulasData.filter(a => a.assistida);
+  const listAtivas = document.getElementById('aulas-ativas-list');
+  const listHist = document.getElementById('aulas-historico-list');
+  const histWrap = document.getElementById('aulas-historico-wrap');
+  const countEl = document.getElementById('aulas-count');
+
+  if (!listAtivas) return;
+
+  // contagem
+  if (countEl) countEl.textContent = ativas.length > 0 ? `${ativas.length} aula${ativas.length > 1 ? 's' : ''}` : 'Nenhuma nova';
+
+  // aulas ativas
+  if (!ativas.length) {
+    listAtivas.innerHTML = '<div style="text-align:center;padding:32px 16px;color:var(--t3);font-size:13px">🎓 Nenhuma aula disponível no momento.<br><span style="font-size:11px">Seu mentor vai liberar em breve!</span></div>';
+  } else {
+    listAtivas.innerHTML = ativas.map(a => buildAulaCard(a)).join('');
+  }
+
+  // histórico
+  if (assistidas.length > 0) {
+    histWrap.style.display = 'block';
+    document.getElementById('hist-aulas-label').textContent = `Aulas anteriores (${assistidas.length} assistida${assistidas.length > 1 ? 's' : ''})`;
+    listHist.innerHTML = assistidas.map(a => buildAulaCompact(a)).join('');
+  } else {
+    histWrap.style.display = 'none';
+  }
+}
+
+function buildAulaCard(a) {
+  const thumb = getYoutubeThumbnail(a.link_youtube);
+  const ytId = getYoutubeId(a.link_youtube);
+  const isNova = !a.assistida && a.created_at && (new Date() - new Date(a.created_at)) < 7 * 24 * 60 * 60 * 1000;
+
+  return `
+  <div class="aula-card" id="aulacard-${a.id}">
+    ${a.link_youtube ? `
+    <div class="aula-thumb-wrap" onclick="window.open('${a.link_youtube}','_blank')">
+      <img class="aula-thumb" src="${thumb}" alt="${a.titulo}" onerror="this.style.display='none'">
+      <div class="aula-play-overlay">
+        <div class="aula-play-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      </div>
+      ${a.semana ? `<div class="aula-semana-badge">${a.semana}</div>` : ''}
+      ${isNova ? `<div class="aula-nova-badge">NOVA</div>` : ''}
+    </div>` : `
+    <div style="padding:16px 14px 0;display:flex;align-items:center;gap:8px">
+      <span style="font-size:22px">🎓</span>
+      ${a.semana ? `<span class="aula-semana-badge" style="position:static">${a.semana}</span>` : ''}
+      ${isNova ? `<span class="aula-nova-badge" style="position:static">NOVA</span>` : ''}
+    </div>`}
+    <div class="aula-body">
+      <div class="aula-titulo">${a.titulo}</div>
+      ${a.descricao ? `<div class="aula-desc">${a.descricao}</div>` : ''}
+      <div class="aula-nota-label">✏️ Minhas anotações</div>
+      <textarea class="aula-nota" id="nota-${a.id}" placeholder="O que você aprendeu? Insights para o encontro...">${a.anotacoes || ''}</textarea>
+      <div class="aula-actions">
+        <button class="btn-assistir" onclick="marcarAssistida('${a.id}')">✓ Marcar como assistida</button>
+        <button class="btn-salvar-nota" onclick="salvarNotaAula('${a.id}')">💾</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildAulaCompact(a) {
+  const thumb = getYoutubeThumbnail(a.link_youtube);
+  const dataAssist = a.assistida_em ? new Date(a.assistida_em).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'}) : '';
+  return `
+  <div class="aula-card-compact" onclick="${a.link_youtube ? `window.open('${a.link_youtube}','_blank')` : ''}">
+    ${thumb ? `<img class="aula-thumb-mini" src="${thumb}" alt="">` : '<div class="aula-thumb-mini" style="display:flex;align-items:center;justify-content:center;font-size:18px">🎓</div>'}
+    <div class="aula-compact-info">
+      <div class="aula-compact-titulo">${a.titulo}</div>
+      <div class="aula-compact-semana">${dataAssist ? `Assistida em ${dataAssist}` : 'Assistida'}${a.semana ? ` · ${a.semana}` : ''}</div>
+    </div>
+    <span class="aula-compact-badge">✓</span>
+  </div>`;
+}
+
+async function marcarAssistida(aulaId) {
+  try {
+    const now = new Date().toISOString();
+    await api(`aulas_semanais?id=eq.${aulaId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({assistida: true, assistida_em: now}),
+      prefer: 'return=minimal'
+    });
+    // salva anotação junto
+    const nota = document.getElementById(`nota-${aulaId}`)?.value.trim();
+    if (nota) {
+      await api(`aulas_semanais?id=eq.${aulaId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({anotacoes: nota}),
+        prefer: 'return=minimal'
+      });
+    }
+    // atualiza local
+    const a = aulasData.find(x => x.id === aulaId);
+    if (a) { a.assistida = true; a.assistida_em = now; if (nota) a.anotacoes = nota; }
+
+    // animação saída
+    const card = document.getElementById(`aulacard-${aulaId}`);
+    if (card) {
+      card.style.transition = 'opacity .4s, transform .4s';
+      card.style.opacity = '0'; card.style.transform = 'translateY(-8px)';
+      setTimeout(() => renderAulas(), 420);
+    } else {
+      renderAulas();
+    }
+    showToast('✅ Aula marcada como assistida!');
+
+    // notifica mentor
+    addNotifMentorAula(a);
+  } catch(e) { showToast('⚠️ Erro ao salvar.'); }
+}
+
+async function salvarNotaAula(aulaId) {
+  const nota = document.getElementById(`nota-${aulaId}`)?.value.trim();
+  try {
+    await api(`aulas_semanais?id=eq.${aulaId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({anotacoes: nota || null}),
+      prefer: 'return=minimal'
+    });
+    const a = aulasData.find(x => x.id === aulaId);
+    if (a) a.anotacoes = nota;
+    showToast('💾 Anotação salva!');
+  } catch(e) { showToast('⚠️ Erro ao salvar.'); }
+}
+
+function toggleAulasHistorico() {
+  const list = document.getElementById('aulas-historico-list');
+  const chev = document.getElementById('hist-aulas-chev');
+  list.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+async function addNotifMentorAula(aula) {
+  // envia notificação para o mentor via campo do aluno
+  // (simplificado — mentor vê nas notificações)
+  try {
+    const alunoInfo = await api(`alunos?id=eq.${alunoId}&select=nome`);
+    const nomeAluno = alunoInfo?.[0]?.nome || 'Aluno';
+    // salva no localStorage do mentor via banco (notificacoes_pendentes do mentor não existe)
+    // por ora apenas um log — pode ser expandido futuramente
+  } catch(e) {}
+}
+
 // ═══════════════════════════════════════════════════════════
 // SISTEMA DE SENHA DO ALUNO
 // ═══════════════════════════════════════════════════════════
@@ -4237,6 +4554,7 @@ function goTab(id){
   document.querySelectorAll('.sec').forEach(s=>{s.classList.remove('active');s.style.display='none';});
   const s=document.getElementById(id);if(s){s.classList.add('active');s.style.display='block';}
   if(id==='perfil'){initRadar();renderRecompensas();calcularStatsmes();}
+  if(id==='aulas'){loadAulas();}
 }
 
 let toastTimer=null;

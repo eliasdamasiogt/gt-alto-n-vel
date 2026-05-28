@@ -540,6 +540,9 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="sidebar-item" id="sb-desafios" onclick="goTab('desafios')">
     <span>⚡</span><span>Desafios</span>
   </div>
+  <div class="sidebar-item" id="sb-aulas-mentor" onclick="goTab('aulas-mentor')">
+    <span>🎓</span><span>Aulas</span>
+  </div>
   <div class="sidebar-item" id="sb-videos" onclick="goTab('videos')">
     <span class="sidebar-item-icon">▶</span> Vídeos
     <div class="notif-dot" id="sb-videos-dot"></div>
@@ -588,6 +591,7 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="tab" onclick="goTab('novo')">➕ Novo aluno</div>
   <div class="tab" onclick="goTab('biblioteca')">📚 Biblioteca</div>
   <div class="tab" onclick="goTab('desafios')">⚡ Desafios</div>
+  <div class="tab" onclick="goTab('aulas-mentor')">🎓 Aulas</div>
   <div class="tab" onclick="goTab('videos')">🎬 Vídeos <span id="videos-badge" style="display:none;background:var(--re);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:3px"></span></div>
   <div class="tab" onclick="goTab('visao')">📊 Visão geral</div>
 </div>
@@ -866,6 +870,29 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
     </div>
   </div>
   <div id="desafios-list"><div class="empty-state">Carregando...</div></div>
+</div>
+
+<!-- AULAS MENTOR -->
+<div id="aulas-mentor" class="sec" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+    <div style="font-size:14px;font-weight:500;color:var(--t1)">🎓 Aulas Semanais</div>
+    <button class="btn" onclick="abrirFormAula()" style="background:var(--pu3);border-color:var(--pu);color:var(--put)">+ Nova aula</button>
+  </div>
+  <div class="add-form" id="form-aula" style="display:none;margin-bottom:16px">
+    <div style="font-size:12px;font-weight:500;color:var(--t1);margin-bottom:10px">Nova Aula</div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2"><label class="form-label">Aluno</label><select class="form-input" id="aula-aluno"></select></div>
+      <div class="form-group"><label class="form-label">Semana</label><input class="form-input" id="aula-semana" placeholder="ex: Semana 22"></div>
+    </div>
+    <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="aula-titulo" placeholder="ex: Harmonia Funcional"></div>
+    <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="aula-desc" rows="2" placeholder="Sobre o que é essa aula..."></textarea></div>
+    <div class="form-group"><label class="form-label">Link do YouTube</label><input class="form-input" id="aula-link" placeholder="https://youtube.com/watch?v=..."></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn-primary" onclick="salvarAula()">✓ Publicar aula</button>
+      <button class="btn-sm" onclick="fecharFormAula()">Cancelar</button>
+    </div>
+  </div>
+  <div id="aulas-mentor-list"><div class="empty-state">Carregando...</div></div>
 </div>
 
 <!-- ══ VÍDEOS ══════════════════════════════════════════════ -->
@@ -2191,6 +2218,124 @@ async function deletarDesafio(id) {
   } catch(e) { showToast('⚠️ Erro.'); }
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// AULAS SEMANAIS — MENTOR
+// ═══════════════════════════════════════════════════════════
+let todasAulas = [];
+
+async function loadAulasMentor() {
+  const list = document.getElementById('aulas-mentor-list');
+  try {
+    todasAulas = await api('aulas_semanais?order=created_at.desc&select=id,aluno_id,titulo,descricao,link_youtube,semana,ativo,assistida,assistida_em,anotacoes,created_at');
+    renderAulasMentor();
+    const sel = document.getElementById('aula-aluno');
+    if (sel && allAlunos.length) sel.innerHTML = allAlunos.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+  } catch(e) {
+    if (list) list.innerHTML = `<div class="empty-state" style="color:var(--ret)">⚠️ Erro: ${e.message}</div>`;
+  }
+}
+
+function renderAulasMentor() {
+  const list = document.getElementById('aulas-mentor-list');
+  if (!list) return;
+  if (!todasAulas.length) { list.innerHTML = '<div class="empty-state">Nenhuma aula publicada ainda.</div>'; return; }
+  list.innerHTML = todasAulas.map(a => {
+    const aluno = allAlunos.find(x => x.id === a.aluno_id);
+    const thumb = getYoutubeThumbnailMentor(a.link_youtube);
+    const dataCreate = new Date(a.created_at).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
+    return `
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+      ${thumb ? `<img src="${thumb}" style="width:100%;height:120px;object-fit:cover;display:block" alt="">` : ''}
+      <div style="padding:12px 14px">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--t1)">${a.titulo}</div>
+            <div style="font-size:10px;color:var(--t3);margin-top:2px">
+              ${aluno?.nome || 'Aluno'} · ${a.semana || ''} · ${dataCreate}
+              ${a.assistida ? ' · <span style="color:var(--tet)">✓ Assistida</span>' : ''}
+              ${!a.ativo ? ' · <span style="color:var(--t3)">Inativa</span>' : ''}
+            </div>
+          </div>
+          <div style="display:flex;gap:5px;flex-shrink:0">
+            <button class="btn-desafio" onclick="toggleAulaAtiva('${a.id}',${!a.ativo})">${a.ativo ? '⏸' : '▶'}</button>
+            <button class="btn-desafio btn-desafio-danger" onclick="deletarAula('${a.id}')">🗑</button>
+          </div>
+        </div>
+        ${a.anotacoes ? `<div style="font-size:11px;color:var(--t2);font-style:italic;margin-top:6px;padding:8px;background:var(--bg2);border-radius:8px;line-height:1.5">"${a.anotacoes}"</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getYoutubeThumbnailMentor(url) {
+  if (!url) return '';
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  return m ? `https://img.youtube.com/vi/${m[1]}/mqdefault.jpg` : '';
+}
+
+function abrirFormAula() {
+  const form = document.getElementById('form-aula');
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  const sel = document.getElementById('aula-aluno');
+  if (sel) sel.innerHTML = allAlunos.map(a => `<option value="${a.id}">${a.nome}</option>`).join('');
+}
+
+function fecharFormAula() {
+  const form = document.getElementById('form-aula');
+  if (form) form.style.display = 'none';
+}
+
+async function salvarAula() {
+  const alunoId = document.getElementById('aula-aluno')?.value;
+  const titulo = document.getElementById('aula-titulo')?.value.trim();
+  if (!alunoId || !titulo) { showToast('⚠️ Preencha aluno e título.'); return; }
+  const payload = {
+    aluno_id: alunoId,
+    titulo,
+    descricao: document.getElementById('aula-desc')?.value.trim() || null,
+    link_youtube: document.getElementById('aula-link')?.value.trim() || null,
+    semana: document.getElementById('aula-semana')?.value.trim() || null,
+    ativo: true, assistida: false,
+  };
+  try {
+    const res = await api('aulas_semanais', {method:'POST', body:JSON.stringify(payload), prefer:'return=representation'});
+    if (res?.[0]) todasAulas.unshift(res[0]);
+    renderAulasMentor();
+    fecharFormAula();
+    ['aula-titulo','aula-desc','aula-link','aula-semana'].forEach(id => { const el = document.getElementById(id); if(el) el.value=''; });
+    showToast('✅ Aula publicada!');
+    // notificar aluno
+    try {
+      const alunoData = await api(`alunos?id=eq.${alunoId}&select=notificacoes_pendentes`);
+      let notifs = [];
+      try { notifs = JSON.parse(alunoData?.[0]?.notificacoes_pendentes || '[]'); } catch(e) {}
+      notifs.push({id:Date.now(), icon:'🎓', title:'Nova aula disponível!', msg:`"${titulo}" foi liberada. Confira na aba Aulas!`, time: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})});
+      await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({notificacoes_pendentes:JSON.stringify(notifs)}), prefer:'return=minimal'});
+    } catch(e) {}
+  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
+}
+
+async function toggleAulaAtiva(id, novoAtivo) {
+  try {
+    await api(`aulas_semanais?id=eq.${id}`, {method:'PATCH', body:JSON.stringify({ativo:novoAtivo}), prefer:'return=minimal'});
+    const a = todasAulas.find(x => x.id === id);
+    if (a) a.ativo = novoAtivo;
+    renderAulasMentor();
+    showToast(novoAtivo ? '▶ Aula ativada' : '⏸ Aula pausada');
+  } catch(e) { showToast('⚠️ Erro.'); }
+}
+
+async function deletarAula(id) {
+  if (!confirm('Apagar esta aula?')) return;
+  try {
+    await api(`aulas_semanais?id=eq.${id}`, {method:'DELETE'});
+    todasAulas = todasAulas.filter(x => x.id !== id);
+    renderAulasMentor();
+    showToast('🗑 Aula apagada.');
+  } catch(e) { showToast('⚠️ Erro.'); }
+}
+
 // ═══════════════════════════════════════════════════════════
 // HISTÓRICO DE ANOTAÇÕES
 // ═══════════════════════════════════════════════════════════
@@ -2499,7 +2644,7 @@ function renderVisao(){
 function goTab(id){
   // tabs mobile
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
-  const map={alunos:0,montar:1,novo:2,biblioteca:3,desafios:4,videos:5,visao:6};
+  const map={alunos:0,montar:1,novo:2,biblioteca:3,desafios:4,'aulas-mentor':5,videos:6,visao:7};
   if(map[id]!==undefined) document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
   // sidebar desktop
   document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
@@ -2511,6 +2656,7 @@ function goTab(id){
   // carrega dados da aba
   if(id==='videos') loadVideos();
   if(id==='desafios') loadDesafios();
+  if(id==='aulas-mentor') loadAulasMentor();
   if(id==='biblioteca') loadBiblioteca();
 }
 
