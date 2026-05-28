@@ -1084,6 +1084,44 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 .aula-compact-semana { font-size: 10px; color: var(--t3); }
 .aula-compact-badge { font-size: 10px; color: var(--tet); flex-shrink: 0; }
 
+
+/* ══ PLAYER DE AULA ══════════════════════════════════════ */
+.aula-player-overlay {
+  position: fixed; inset: 0;
+  background: #000;
+  z-index: 700;
+  display: none;
+  flex-direction: column;
+}
+.aula-player-overlay.open { display: flex; }
+.aula-player-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(0,0,0,.85);
+  flex-shrink: 0;
+}
+.aula-player-titulo {
+  font-size: 13px; font-weight: 500; color: #fff;
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.aula-player-btns { display: flex; gap: 8px; flex-shrink: 0; }
+.aula-player-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: rgba(255,255,255,.1);
+  color: #fff; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.aula-player-btn:hover { background: rgba(255,255,255,.2); }
+.aula-player-iframe-wrap {
+  flex: 1; position: relative;
+}
+.aula-player-iframe {
+  width: 100%; height: 100%; border: none;
+}
+
 </style>
 </head>
 <body>
@@ -1136,6 +1174,22 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
     </div>
     <div class="oneup-popup-status" id="oneup-status"></div>
     <button class="oneup-popup-btn" onclick="fecharOneupPopup()">Entendido!</button>
+  </div>
+</div>
+
+<!-- PLAYER DE AULA -->
+<div class="aula-player-overlay" id="aula-player-overlay">
+  <div class="aula-player-topbar">
+    <div class="aula-player-titulo" id="aula-player-titulo">Aula</div>
+    <div class="aula-player-btns">
+      <button class="aula-player-btn" onclick="toggleFullscreenAula()" title="Tela cheia" id="aula-fs-btn">⛶</button>
+      <button class="aula-player-btn" onclick="fecharAulaPlayer()" title="Fechar">✕</button>
+    </div>
+  </div>
+  <div class="aula-player-iframe-wrap" id="aula-player-wrap">
+    <iframe class="aula-player-iframe" id="aula-player-iframe"
+      src="" allowfullscreen allow="autoplay; fullscreen; picture-in-picture">
+    </iframe>
   </div>
 </div>
 
@@ -3321,7 +3375,7 @@ function _fecharMaterial() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     _fecharMaterial();
-    // ESC também para todos os metrônomos
+    fecharAulaPlayer();
     pararTodosMetronomes();
   }
   // bloqueia barra de espaço de disparar metrônomo globalmente
@@ -3880,6 +3934,57 @@ async function concluirDesafio() {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════
+// PLAYER DE AULA (YouTube embed)
+// ═══════════════════════════════════════════════════════════
+function abrirAulaPlayer(url, titulo) {
+  if (!url) return;
+
+  // Converte link para embed
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  const embedUrl = m
+    ? `https://www.youtube.com/embed/${m[1]}?autoplay=1&rel=0&modestbranding=1`
+    : url;
+
+  document.getElementById('aula-player-titulo').textContent = titulo || 'Aula';
+  document.getElementById('aula-player-iframe').src = embedUrl;
+  document.getElementById('aula-player-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharAulaPlayer() {
+  document.getElementById('aula-player-overlay').classList.remove('open');
+  document.getElementById('aula-player-iframe').src = '';
+  document.body.style.overflow = '';
+  // sai do fullscreen se estiver
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function toggleFullscreenAula() {
+  const wrap = document.getElementById('aula-player-overlay');
+  const btn = document.getElementById('aula-fs-btn');
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen().then(() => {
+      btn.textContent = '⊡';
+      btn.title = 'Sair da tela cheia';
+    }).catch(() => {});
+  } else {
+    document.exitFullscreen().then(() => {
+      btn.textContent = '⛶';
+      btn.title = 'Tela cheia';
+    }).catch(() => {});
+  }
+}
+
+// ESC fecha o player (quando não está em fullscreen)
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    const btn = document.getElementById('aula-fs-btn');
+    if (btn) { btn.textContent = '⛶'; btn.title = 'Tela cheia'; }
+  }
+});
+
 // ═══════════════════════════════════════════════════════════
 // AULAS SEMANAIS
 // ═══════════════════════════════════════════════════════════
@@ -3948,7 +4053,7 @@ function buildAulaCard(a) {
   return `
   <div class="aula-card" id="aulacard-${a.id}">
     ${a.link_youtube ? `
-    <div class="aula-thumb-wrap" onclick="window.open('${a.link_youtube}','_blank')">
+    <div class="aula-thumb-wrap" onclick="abrirAulaPlayer('${a.link_youtube}','${a.titulo.replace(/'/g,"\'").replace(/"/g,'\"')}')">
       <img class="aula-thumb" src="${thumb}" alt="${a.titulo}" onerror="this.style.display='none'">
       <div class="aula-play-overlay">
         <div class="aula-play-btn">
