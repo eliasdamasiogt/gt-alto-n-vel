@@ -3959,10 +3959,23 @@ function abrirAulaPlayer(url, titulo) {
 }
 
 function fecharAulaPlayer() {
+  // se veio de inline, devolve o iframe ao card
+  if (_aulaInlineId) {
+    const iframeInline = document.getElementById('aula-iframe-' + _aulaInlineId);
+    const playerInline = document.getElementById('aula-player-inline-' + _aulaInlineId);
+    if (iframeInline && playerInline) {
+      iframeInline.style.position = 'absolute';
+      iframeInline.style.inset = '0';
+      iframeInline.style.width = '100%';
+      iframeInline.style.height = '100%';
+      playerInline.appendChild(iframeInline);
+    }
+    _aulaInlineId = null;
+  } else {
+    document.getElementById('aula-player-iframe').src = '';
+  }
   document.getElementById('aula-player-overlay').classList.remove('open');
-  document.getElementById('aula-player-iframe').src = '';
   document.body.style.overflow = '';
-  // sai do fullscreen se estiver
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
 }
 
@@ -4011,17 +4024,25 @@ function iniciarAulaInline(aulaId, url, titulo) {
   player.style.display = 'block';
 }
 
+let _aulaInlineId = null; // rastreia qual aula está inline para devolver
+
 function expandirParaFullscreen(aulaId, url, titulo) {
-  const iframe = document.getElementById('aula-iframe-' + aulaId);
-  // pega o src atual do iframe inline (com o tempo de onde está)
-  const currentSrc = iframe?.src || url;
-  // abre no player fullscreen passando o src atual
+  const iframeInline = document.getElementById('aula-iframe-' + aulaId);
+  const playerWrap = document.getElementById('aula-player-wrap');
+  if (!iframeInline || !playerWrap) return;
+
+  // Move o iframe inline para dentro do player fullscreen (sem recriar)
+  _aulaInlineId = aulaId;
+  iframeInline.style.position = 'absolute';
+  iframeInline.style.inset = '0';
+  iframeInline.style.width = '100%';
+  iframeInline.style.height = '100%';
+  playerWrap.innerHTML = '';
+  playerWrap.appendChild(iframeInline);
+
   document.getElementById('aula-player-titulo').textContent = titulo || 'Aula';
-  document.getElementById('aula-player-iframe').src = currentSrc;
   document.getElementById('aula-player-overlay').classList.add('open');
   document.body.style.overflow = 'hidden';
-  // pausa o inline
-  if (iframe) iframe.src = currentSrc; // mantém sincronizado
 }
 
 // ═══════════════════════════════════════════════════════════

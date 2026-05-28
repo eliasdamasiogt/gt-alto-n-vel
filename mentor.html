@@ -2245,11 +2245,11 @@ function renderAulasMentor() {
     const thumb = getYoutubeThumbnailMentor(a.link_youtube);
     const dataCreate = new Date(a.created_at).toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit'});
     return `
-    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden" id="aulacard-m-${a.id}">
       ${thumb ? `<img src="${thumb}" style="width:100%;height:120px;object-fit:cover;display:block" alt="">` : ''}
       <div style="padding:12px 14px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px">
-          <div>
+          <div style="flex:1;min-width:0">
             <div style="font-size:13px;font-weight:600;color:var(--t1)">${a.titulo}</div>
             <div style="font-size:10px;color:var(--t3);margin-top:2px">
               ${aluno?.nome || 'Aluno'} · ${a.semana || ''} · ${dataCreate}
@@ -2258,11 +2258,25 @@ function renderAulasMentor() {
             </div>
           </div>
           <div style="display:flex;gap:5px;flex-shrink:0">
+            <button class="btn-desafio" onclick="abrirEditarAula('${a.id}')">✏️</button>
             <button class="btn-desafio" onclick="toggleAulaAtiva('${a.id}',${!a.ativo})">${a.ativo ? '⏸' : '▶'}</button>
             <button class="btn-desafio btn-desafio-danger" onclick="deletarAula('${a.id}')">🗑</button>
           </div>
         </div>
-        ${a.anotacoes ? `<div style="font-size:11px;color:var(--t2);font-style:italic;margin-top:6px;padding:8px;background:var(--bg2);border-radius:8px;line-height:1.5">"${a.anotacoes}"</div>` : ''}
+        ${a.anotacoes ? `<div style="font-size:11px;color:var(--t2);font-style:italic;margin-top:6px;padding:8px;background:var(--bg2);border-radius:8px;line-height:1.5">📝 Anotação do aluno: "${a.anotacoes}"</div>` : ''}
+        <!-- form de edição inline -->
+        <div id="edit-aula-${a.id}" style="display:none;margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+          <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="ea-titulo-${a.id}" value="${a.titulo}"></div>
+          <div class="form-group"><label class="form-label">Descrição</label><textarea class="form-input" id="ea-desc-${a.id}" rows="2">${a.descricao || ''}</textarea></div>
+          <div class="form-group"><label class="form-label">Link YouTube</label><input class="form-input" id="ea-link-${a.id}" value="${a.link_youtube || ''}"></div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Semana</label><input class="form-input" id="ea-semana-${a.id}" value="${a.semana || ''}"></div>
+          </div>
+          <div style="display:flex;gap:7px;margin-top:8px">
+            <button class="btn-primary" onclick="salvarEditarAula('${a.id}')">✓ Salvar</button>
+            <button class="btn-sm" onclick="document.getElementById('edit-aula-${a.id}').style.display='none'">Cancelar</button>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -2313,6 +2327,29 @@ async function salvarAula() {
       notifs.push({id:Date.now(), icon:'🎓', title:'Nova aula disponível!', msg:`"${titulo}" foi liberada. Confira na aba Aulas!`, time: new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})});
       await api(`alunos?id=eq.${alunoId}`, {method:'PATCH', body:JSON.stringify({notificacoes_pendentes:JSON.stringify(notifs)}), prefer:'return=minimal'});
     } catch(e) {}
+  } catch(e) { showToast('⚠️ Erro: ' + e.message); }
+}
+
+
+function abrirEditarAula(id) {
+  const form = document.getElementById('edit-aula-' + id);
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function salvarEditarAula(id) {
+  const payload = {
+    titulo:       document.getElementById('ea-titulo-' + id)?.value.trim(),
+    descricao:    document.getElementById('ea-desc-' + id)?.value.trim() || null,
+    link_youtube: document.getElementById('ea-link-' + id)?.value.trim() || null,
+    semana:       document.getElementById('ea-semana-' + id)?.value.trim() || null,
+  };
+  if (!payload.titulo) { showToast('⚠️ Título obrigatório.'); return; }
+  try {
+    await api(`aulas_semanais?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(payload), prefer:'return=minimal'});
+    const a = todasAulas.find(x => x.id === id);
+    if (a) Object.assign(a, payload);
+    renderAulasMentor();
+    showToast('✅ Aula atualizada!');
   } catch(e) { showToast('⚠️ Erro: ' + e.message); }
 }
 
