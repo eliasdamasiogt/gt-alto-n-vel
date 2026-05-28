@@ -1735,8 +1735,10 @@ function renderTreino() {
         const ta = document.getElementById(`note-${ex.id}`);
         if (ta) ta.value = reg.anotacao;
       }
-      if (reg.bpm_hoje) {
-        updBpmEx(ex.id, reg.bpm_hoje);
+      // usa bpm_hoje de hoje, ou o último BPM registrado, ou o inicial
+      const bpmParaUsar = reg.bpm_hoje || reg._bpm_retomada || ex.bpm_inicial;
+      if (bpmParaUsar) {
+        updBpmEx(ex.id, bpmParaUsar);
       }
     }
     if (checks[ex.id]) {
