@@ -2,10 +2,10 @@
   "name": "Escola da Harmonia",
   "short_name": "Harmonia",
   "description": "App de treino de guitarra",
-  "start_url": "/",
+  "start_url": "/?t=elias-damasio-gt",
   "display": "standalone",
   "background_color": "#0d0d11",
-  "theme_color": "#0d0d11",
+  "theme_color": "#6c60d4",
   "orientation": "portrait",
   "icons": [
     {
