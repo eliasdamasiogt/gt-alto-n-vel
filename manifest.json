@@ -1,10 +1,10 @@
 {
-  "name": "Escola da Harmonia",
-  "short_name": "Harmonia",
-  "description": "App de treino de guitarra",
+  "name": "Guitarrista de Alto Nível",
+  "short_name": "Alto Nível",
+  "description": "Seu app de treino de guitarra",
   "start_url": "/?t=elias-damasio-gt",
   "display": "standalone",
-  "background_color": "#0d0d11",
+  "background_color": "#ebe8e0",
   "theme_color": "#6c60d4",
   "orientation": "portrait",
   "icons": [
