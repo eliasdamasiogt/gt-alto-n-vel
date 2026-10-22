@@ -1330,6 +1330,7 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
 <!-- TABS -->
 <div class="tabs" id="main-tabs">
   <div class="tab active" onclick="goTab('treino')">🏋️ Treino</div>
+  <div class="tab" onclick="goTab('mapa')">🗺️ Mapa</div>
   <div class="tab" onclick="goTab('repertorio')">🎵 Repertório</div>
   <div class="tab" onclick="goTab('aulas')" id="tab-aulas">🎓 Aulas</div>
   <div class="tab" onclick="goTab('perfil')">👤 Perfil</div>
@@ -1358,6 +1359,19 @@ body.tema-claro .tema-sw-thumb { transform:translateX(20px);background:var(--pu)
       <div class="empty-state-icon">🏋️</div>
       Carregando exercícios...
     </div>
+  </div>
+</div>
+
+<!-- MAPA DE DOMÍNIO -->
+<div id="mapa" class="sec" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div class="day-title">🗺️ Mapa de Domínio</div>
+      <div class="day-sub" id="mapa-sub">Seus temas de estudo e pilares</div>
+    </div>
+  </div>
+  <div id="mapa-container">
+    <div class="empty-state"><div class="empty-state-icon">🗺️</div>Carregando temas...</div>
   </div>
 </div>
 
@@ -4745,18 +4759,207 @@ function goTab(id){
     _fecharMaterial(); // fecha popup de material se aberto
   }
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
-  const map={treino:0,repertorio:1,perfil:2};
+  const map={treino:0,mapa:1,repertorio:2,aulas:3,perfil:4};
   if(map[id]!==undefined)document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
   document.querySelectorAll('.sec').forEach(s=>{s.classList.remove('active');s.style.display='none';});
   const s=document.getElementById(id);if(s){s.classList.add('active');s.style.display='block';}
   if(id==='perfil'){initRadar();renderRecompensas();calcularStatsmes();}
   if(id==='aulas'){loadAulas();}
+  if(id==='mapa'){loadMapa();}
 }
 
 let toastTimer=null;
 function showToast(msg){
   const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAPA DE DOMÍNIO
+// ═══════════════════════════════════════════════════════════
+let _temas=[], _pilares=[], _regPilares=[];
+let _pilarTreino=null; // pilar selecionado para treinar hoje
+
+async function loadMapa(){
+  if(!alunoId){document.getElementById('mapa-container').innerHTML='<div class="empty-state"><div class="empty-state-icon">🔒</div>Faça login para ver seu mapa</div>';return;}
+  document.getElementById('mapa-container').innerHTML='<div class="empty-state"><div class="empty-state-icon">⏳</div>Carregando...</div>';
+  try{
+    const [temas,pilares,regs]=await Promise.all([
+      api(`temas_estudo?aluno_id=eq.${alunoId}&ativo=eq.true&order=created_at.asc`),
+      api(`pilares_tema?aluno_id=eq.${alunoId}&ativo=eq.true&order=ordem.asc`),
+      api(`registros_pilares?aluno_id=eq.${alunoId}&order=data.desc`)
+    ]);
+    _temas=temas; _pilares=pilares; _regPilares=regs;
+    renderMapa();
+  }catch(e){
+    document.getElementById('mapa-container').innerHTML='<div class="empty-state"><div class="empty-state-icon">⚠️</div>Erro ao carregar mapa</div>';
+  }
+}
+
+function renderMapa(){
+  const c=document.getElementById('mapa-container');
+  if(!_temas.length){
+    c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🗺️</div><p>Nenhum tema de estudo ainda.</p><p style="font-size:12px;color:var(--t3);margin-top:8px">Seu mentor vai criar os temas e pilares para você acompanhar aqui.</p></div>';
+    return;
+  }
+
+  // Calcula stats por pilar
+  const hoje=getTodayLocal();
+  const semanaAtras=new Date(); semanaAtras.setDate(semanaAtras.getDate()-7);
+  const mesAtras=new Date(); mesAtras.setDate(mesAtras.getDate()-30);
+
+  const statsPilar={};
+  _pilares.forEach(p=>{
+    const regs=_regPilares.filter(r=>r.pilar_id===p.id);
+    const semana=regs.filter(r=>new Date(r.data)>=semanaAtras).length;
+    const mes=regs.filter(r=>new Date(r.data)>=mesAtras).length;
+    const ultimaData=regs.length?regs[0].data:null;
+    const diasSemTreinar=ultimaData?Math.floor((new Date()-new Date(ultimaData))/86400000):999;
+    statsPilar[p.id]={total:regs.length,semana,mes,ultimaData,diasSemTreinar};
+  });
+
+  // Sugestão: pilar com mais dias sem treinar
+  const todosPilares=_pilares.filter(p=>p.ativo);
+  let sugerido=null;
+  if(todosPilares.length){
+    sugerido=todosPilares.reduce((a,b)=>(statsPilar[a.id]?.diasSemTreinar||999)>=(statsPilar[b.id]?.diasSemTreinar||999)?a:b);
+  }
+
+  let html='';
+
+  // Card de sugestão
+  if(sugerido){
+    const st=statsPilar[sugerido.id];
+    const tema=_temas.find(t=>t.id===sugerido.tema_id);
+    const diasTxt=st.diasSemTreinar===999?'nunca treinado':(st.diasSemTreinar===0?'treinou hoje':`${st.diasSemTreinar}d sem treinar`);
+    html+=`<div style="background:linear-gradient(135deg,var(--pu2),var(--pu3));border-radius:16px;padding:16px;margin-bottom:20px;border:1px solid var(--pu3)">
+      <div style="font-size:11px;color:var(--t3);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">💡 Sugestão de hoje</div>
+      <div style="font-weight:700;font-size:16px;color:var(--t1);margin-bottom:4px">${sugerido.titulo}</div>
+      <div style="font-size:12px;color:var(--t3);margin-bottom:12px">${tema?tema.titulo:''} · ${diasTxt}</div>
+      <button onclick="selecionarPilarTreino('${sugerido.id}')" style="background:var(--pu);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;cursor:pointer;width:100%">
+        ▶ Treinar este pilar hoje
+      </button>
+    </div>`;
+  }
+
+  // Temas e pilares
+  _temas.forEach(tema=>{
+    const pilaresTema=_pilares.filter(p=>p.tema_id===tema.id);
+    if(!pilaresTema.length) return;
+
+    // barra de progresso do tema
+    const totalSemana=pilaresTema.reduce((s,p)=>s+(statsPilar[p.id]?.semana||0),0);
+    const maxSemana=Math.max(...pilaresTema.map(p=>statsPilar[p.id]?.semana||0),1);
+
+    html+=`<div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <div style="width:10px;height:10px;border-radius:50%;background:${tema.cor||'#8b7ff5'}"></div>
+        <div style="font-weight:700;font-size:15px;color:var(--t1)">${tema.titulo}</div>
+        <div style="margin-left:auto;font-size:11px;color:var(--t3)">${totalSemana} treinos essa semana</div>
+      </div>`;
+
+    pilaresTema.forEach(p=>{
+      const st=statsPilar[p.id]||{total:0,semana:0,mes:0,diasSemTreinar:999};
+      const barW=maxSemana>0?Math.round((st.semana/maxSemana)*100):0;
+      const urgencia=st.diasSemTreinar>=14?'var(--re)':st.diasSemTreinar>=7?'#f0a832':'var(--gr)';
+      const diasTxt=st.diasSemTreinar===999?'nunca':(st.diasSemTreinar===0?'hoje':`${st.diasSemTreinar}d atrás`);
+      const isSelecionado=_pilarTreino===p.id;
+
+      html+=`<div onclick="selecionarPilarTreino('${p.id}')" style="background:${isSelecionado?'var(--pu2)':'var(--c2)'};border:1px solid ${isSelecionado?'var(--pu)':'var(--bd)'};border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:all .2s">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-weight:600;font-size:14px;color:var(--t1)">${p.titulo}</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:7px;height:7px;border-radius:50%;background:${urgencia}"></div>
+            <div style="font-size:11px;color:var(--t3)">${diasTxt}</div>
+          </div>
+        </div>
+        <div style="background:var(--c3);border-radius:4px;height:4px;overflow:hidden;margin-bottom:6px">
+          <div style="background:${tema.cor||'#8b7ff5'};height:100%;width:${barW}%;transition:width .5s;border-radius:4px"></div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--t3)">
+          <span>Semana: <strong style="color:var(--t2)">${st.semana}x</strong></span>
+          <span>Mês: <strong style="color:var(--t2)">${st.mes}x</strong></span>
+          <span>Total: <strong style="color:var(--t2)">${st.total}x</strong></span>
+        </div>
+        ${p.descricao?`<div style="font-size:11px;color:var(--t3);margin-top:6px;font-style:italic">${p.descricao}</div>`:''}
+      </div>`;
+    });
+    html+='</div>';
+  });
+
+  // Popup de registro se pilar selecionado
+  if(_pilarTreino){
+    const pilar=_pilares.find(p=>p.id===_pilarTreino);
+    const tema=pilar?_temas.find(t=>t.id===pilar.tema_id):null;
+    html+=`<div id="pilar-treino-popup" style="position:fixed;bottom:0;left:0;right:0;background:var(--c1);border-top:1px solid var(--pu);padding:16px;z-index:100;border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.3)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--t1)">${pilar?.titulo||''}</div>
+          <div style="font-size:12px;color:var(--t3)">${tema?.titulo||''}</div>
+        </div>
+        <button onclick="fecharPilarPopup()" style="background:var(--c3);border:none;color:var(--t2);border-radius:8px;padding:6px 10px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">Duração (min)</label>
+          <input id="pilar-dur" type="number" min="1" max="180" placeholder="15" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">
+        </div>
+        <div style="flex:1">
+          <label style="font-size:11px;color:var(--t3);display:block;margin-bottom:4px">BPM (opcional)</label>
+          <input id="pilar-bpm" type="number" min="40" max="300" placeholder="--" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">
+        </div>
+      </div>
+      <input id="pilar-anot" type="text" placeholder="Anotação (opcional)" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;margin-bottom:12px">
+      <button onclick="registrarPilar()" style="background:var(--pu);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;width:100%">✅ Registrar treino</button>
+    </div>`;
+  }
+
+  c.innerHTML=html;
+}
+
+function selecionarPilarTreino(pilarId){
+  _pilarTreino = _pilarTreino===pilarId ? null : pilarId;
+  renderMapa();
+  if(_pilarTreino){
+    setTimeout(()=>{
+      const popup=document.getElementById('pilar-treino-popup');
+      if(popup) popup.scrollIntoView({behavior:'smooth',block:'end'});
+    },100);
+  }
+}
+
+function fecharPilarPopup(){
+  _pilarTreino=null;
+  renderMapa();
+}
+
+async function registrarPilar(){
+  if(!_pilarTreino||!alunoId) return;
+  const dur=parseInt(document.getElementById('pilar-dur').value)||null;
+  const bpm=parseInt(document.getElementById('pilar-bpm').value)||null;
+  const anot=document.getElementById('pilar-anot').value.trim()||null;
+  const hoje=getTodayLocal();
+
+  // Verifica se já tem registro hoje para este pilar
+  const existente=_regPilares.find(r=>r.pilar_id===_pilarTreino&&r.data===hoje);
+
+  try{
+    if(existente){
+      await api(`registros_pilares?id=eq.${existente.id}`,'PATCH',{
+        duracao_min:dur,bpm,anotacao:anot
+      });
+    } else {
+      await api('registros_pilares','POST',{
+        pilar_id:_pilarTreino,aluno_id:alunoId,data:hoje,
+        duracao_min:dur,bpm,anotacao:anot
+      });
+    }
+    _pilarTreino=null;
+    showToast('✅ Pilar registrado!');
+    await loadMapa();
+  }catch(e){
+    showToast('❌ Erro ao registrar: '+e.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════

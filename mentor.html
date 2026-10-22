@@ -540,6 +540,9 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="sidebar-item" id="sb-desafios" onclick="goTab('desafios')">
     <span>⚡</span><span>Desafios</span>
   </div>
+  <div class="sidebar-item" id="sb-mapa-mentor" onclick="goTab('mapa-mentor')">
+    <span>🗺️</span><span>Mapa</span>
+  </div>
   <div class="sidebar-item" id="sb-aulas-mentor" onclick="goTab('aulas-mentor')">
     <span>🎓</span><span>Aulas</span>
   </div>
@@ -591,6 +594,7 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div class="tab" onclick="goTab('novo')">➕ Novo aluno</div>
   <div class="tab" onclick="goTab('biblioteca')">📚 Biblioteca</div>
   <div class="tab" onclick="goTab('desafios')">⚡ Desafios</div>
+  <div class="tab" onclick="goTab('mapa-mentor')">🗺️ Mapa</div>
   <div class="tab" onclick="goTab('aulas-mentor')">🎓 Aulas</div>
   <div class="tab" onclick="goTab('videos')">🎬 Vídeos <span id="videos-badge" style="display:none;background:var(--re);color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;margin-left:3px"></span></div>
   <div class="tab" onclick="goTab('visao')">📊 Visão geral</div>
@@ -872,6 +876,26 @@ select.form-input option{background:var(--bg2);color:var(--t1)}
   <div id="desafios-list"><div class="empty-state">Carregando...</div></div>
 </div>
 
+
+<!-- MAPA DE DOMÍNIO MENTOR -->
+<div id="mapa-mentor" class="sec" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div>
+      <div style="font-weight:700;font-size:17px;color:var(--t1)">🗺️ Mapa de Domínio</div>
+      <div style="font-size:12px;color:var(--t3)" id="mapa-mentor-sub">Temas e pilares por aluno</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <select id="mapa-aluno-sel" onchange="loadMapaMentor()" style="background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:6px 10px;color:var(--t1);font-size:13px">
+        <option value="">Selecionar aluno</option>
+      </select>
+      <button onclick="abrirNovoTema()" style="background:var(--pu);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;cursor:pointer">+ Tema</button>
+    </div>
+  </div>
+  <div id="mapa-mentor-container">
+    <div class="empty-state"><div class="empty-state-icon">🗺️</div>Selecione um aluno</div>
+  </div>
+</div>
+
 <!-- AULAS MENTOR -->
 <div id="aulas-mentor" class="sec" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
@@ -1016,6 +1040,7 @@ const skills = [
 async function loadAll() {
   try {
     allAlunos = await api('alunos?order=nome.asc&select=*');
+    window._alunosLista = allAlunos; // expõe para o Mapa
     allSessoes = await api('sessoes?select=*');
     todayRegs = await api(`registros_diarios?data=eq.${TODAY}&select=*`);
     // carrega todos os exercícios para cruzar com as anotações
@@ -2678,10 +2703,174 @@ function renderVisao(){
 // ═══════════════════════════════════════════════════════════
 // TABS / UTILS
 // ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+// MAPA DE DOMÍNIO — MENTOR
+// ═══════════════════════════════════════════════════════════
+let _mTemas=[], _mPilares=[], _mRegs=[], _mAlunoId=null;
+
+async function loadMapaMentor(){
+  const sel=document.getElementById('mapa-aluno-sel');
+  _mAlunoId=sel?sel.value:null;
+  const c=document.getElementById('mapa-mentor-container');
+  if(!_mAlunoId){c.innerHTML='<div class="empty-state"><div class="empty-state-icon">🗺️</div>Selecione um aluno</div>';return;}
+  c.innerHTML='<div class="empty-state">⏳ Carregando...</div>';
+  try{
+    const [temas,pilares,regs]=await Promise.all([
+      api('temas_estudo?aluno_id=eq.'+_mAlunoId+'&order=created_at.asc'),
+      api('pilares_tema?aluno_id=eq.'+_mAlunoId+'&order=ordem.asc'),
+      api('registros_pilares?aluno_id=eq.'+_mAlunoId+'&order=data.desc')
+    ]);
+    _mTemas=temas;_mPilares=pilares;_mRegs=regs;
+    renderMapaMentor();
+  }catch(e){c.innerHTML='<div class="empty-state">⚠️ Erro: '+e.message+'</div>';}
+}
+
+function renderMapaMentor(){
+  const c=document.getElementById('mapa-mentor-container');
+  const semanaAtras=new Date();semanaAtras.setDate(semanaAtras.getDate()-7);
+  const mesAtras=new Date();mesAtras.setDate(mesAtras.getDate()-30);
+  let html='';
+  if(!_mTemas.length){
+    html='<div class="empty-state"><div class="empty-state-icon">🗺️</div><p>Nenhum tema criado ainda.</p><button onclick="abrirNovoTema()" style="background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px 20px;cursor:pointer;margin-top:12px">+ Criar primeiro tema</button></div>';
+    c.innerHTML=html;return;
+  }
+  _mTemas.forEach(function(tema){
+    const pilares=_mPilares.filter(function(p){return p.tema_id===tema.id;});
+    html+='<div style="background:var(--c2);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:16px">';
+    html+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">';
+    html+='<div style="width:12px;height:12px;border-radius:50%;background:'+(tema.cor||'#8b7ff5')+'"></div>';
+    html+='<div style="font-weight:700;font-size:15px;color:var(--t1);flex:1">'+(tema.ativo?'':'<s>')+tema.titulo+(tema.ativo?'':'</s>')+'</div>';
+    html+='<button onclick="editarTema(\''+tema.id+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px">✏️</button>';
+    html+='<button onclick="abrirNovoPilar(\''+tema.id+'\')" style="background:var(--pu2);border:1px solid var(--pu3);color:var(--pu);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:12px">+ Pilar</button>';
+    html+='</div>';
+    if(!pilares.length){
+      html+='<div style="font-size:12px;color:var(--t3);padding:8px 0">Nenhum pilar ainda.</div>';
+    }else{
+      var comStats=pilares.map(function(p){
+        var regs=_mRegs.filter(function(r){return r.pilar_id===p.id;});
+        var semana=regs.filter(function(r){return new Date(r.data)>=semanaAtras;}).length;
+        var mes=regs.filter(function(r){return new Date(r.data)>=mesAtras;}).length;
+        var ultima=regs.length?regs[0].data:null;
+        var dias=ultima?Math.floor((new Date()-new Date(ultima))/86400000):999;
+        return Object.assign({},p,{semana:semana,mes:mes,total:regs.length,dias:dias,ultima:ultima});
+      }).sort(function(a,b){return b.dias-a.dias;});
+      comStats.forEach(function(p){
+        var urgencia=p.dias>=14?'var(--re)':p.dias>=7?'#f0a832':'var(--gr)';
+        var diasTxt=p.dias===999?'nunca':(p.dias===0?'hoje':(p.dias+'d atrás'));
+        html+='<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--c1);margin-bottom:6px">';
+        html+='<div style="width:8px;height:8px;border-radius:50%;background:'+urgencia+';flex-shrink:0"></div>';
+        html+='<div style="flex:1">';
+        html+='<div style="font-size:13px;color:var(--t1);font-weight:600">'+(p.ativo?'':'<s>')+p.titulo+(p.ativo?'':'</s>')+'</div>';
+        html+='<div style="font-size:11px;color:var(--t3)">Semana: <b>'+p.semana+'x</b> · Mês: <b>'+p.mes+'x</b> · Último: <b>'+diasTxt+'</b></div>';
+        html+='</div>';
+        html+='<button onclick="editarPilar(\''+p.id+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">✏️</button>';
+        html+='</div>';
+      });
+    }
+    html+='</div>';
+  });
+  c.innerHTML=html;
+}
+
+function populaMapaSelect(){
+  var sel=document.getElementById('mapa-aluno-sel');
+  if(!sel)return;
+  sel.innerHTML='<option value="">Selecionar aluno</option>';
+  (window._alunosLista||[]).forEach(function(a){
+    sel.innerHTML+='<option value="'+a.id+'">'+a.nome+'</option>';
+  });
+  if(window._alunoAtual) sel.value=window._alunoAtual;
+}
+
+function abrirModalTema(temaId){
+  var tema=temaId?_mTemas.find(function(t){return t.id===temaId;}):null;
+  var m=document.createElement('div');
+  m.id='modal-tema';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML='<div style="background:var(--c1);border-radius:16px;padding:20px;width:100%;max-width:400px">'+
+    '<div style="font-weight:700;font-size:16px;margin-bottom:16px;color:var(--t1)">'+(tema?'Editar':'Novo')+' Tema</div>'+
+    '<label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">Título *</label>'+
+    '<input id="mt-titulo" value="'+(tema?tema.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;margin-bottom:2px">'+
+    '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Descrição (opcional)</label>'+
+    '<input id="mt-desc" value="'+(tema?tema.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">'+
+    '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Cor</label>'+
+    '<input id="mt-cor" type="color" value="'+(tema?tema.cor||'#8b7ff5':'#8b7ff5')+'">'+
+    '<div style="display:flex;gap:8px;margin-top:16px">'+
+    (tema?'<button onclick="pausarTema(\''+tema.id+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(tema.ativo?'Pausar':'Ativar')+'</button>':'')+
+    '<button onclick="fecharModalTema()" style="flex:1;background:var(--c3);border:none;color:var(--t2);border-radius:10px;padding:10px;cursor:pointer">Cancelar</button>'+
+    '<button onclick="salvarTema(\'+'+(temaId||'\'\'')+'\')" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
+    '</div></div>';
+  document.body.appendChild(m);
+}
+function abrirNovoTema(id){ abrirModalTema(id||null); }
+function editarTema(id){ abrirModalTema(id); }
+function fecharModalTema(){var m=document.getElementById('modal-tema');if(m)m.remove();}
+async function salvarTema(id){
+  if(!_mAlunoId)return;
+  var titulo=document.getElementById('mt-titulo').value.trim();
+  if(!titulo){showToast('❌ Título obrigatório');return;}
+  var data={titulo:titulo,descricao:document.getElementById('mt-desc').value.trim()||null,cor:document.getElementById('mt-cor').value,aluno_id:_mAlunoId};
+  try{
+    if(id) await api('temas_estudo?id=eq.'+id,'PATCH',data);
+    else await api('temas_estudo','POST',data);
+    fecharModalTema();showToast('✅ Tema salvo');await loadMapaMentor();
+  }catch(e){showToast('❌ '+e.message);}
+}
+async function pausarTema(id){
+  var tema=_mTemas.find(function(t){return t.id===id;});if(!tema)return;
+  await api('temas_estudo?id=eq.'+id,'PATCH',{ativo:!tema.ativo});
+  fecharModalTema();showToast(tema.ativo?'⏸ Pausado':'▶ Ativado');await loadMapaMentor();
+}
+
+function abrirModalPilar(temaId,pilarId){
+  var pilar=pilarId?_mPilares.find(function(p){return p.id===pilarId;}):null;
+  var tema=_mTemas.find(function(t){return t.id===(pilar?pilar.tema_id:temaId);});
+  var m=document.createElement('div');
+  m.id='modal-pilar';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  var saveArgs=(pilarId||'')+'|'+(temaId||'');
+  m.innerHTML='<div style="background:var(--c1);border-radius:16px;padding:20px;width:100%;max-width:400px">'+
+    '<div style="font-weight:700;font-size:16px;margin-bottom:4px;color:var(--t1)">'+(pilar?'Editar':'Novo')+' Pilar</div>'+
+    '<div style="font-size:12px;color:var(--t3);margin-bottom:16px">Tema: '+(tema?tema.titulo:'?')+'</div>'+
+    '<label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">Título *</label>'+
+    '<input id="mp-titulo" value="'+(pilar?pilar.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;margin-bottom:2px">'+
+    '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Descrição (dica pro aluno)</label>'+
+    '<input id="mp-desc" value="'+(pilar?pilar.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">'+
+    '<div style="display:flex;gap:8px;margin-top:16px">'+
+    (pilar?'<button onclick="pausarPilar(\''+pilarId+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(pilar.ativo?'Pausar':'Ativar')+'</button>':'')+
+    '<button onclick="fecharModalPilar()" style="flex:1;background:var(--c3);border:none;color:var(--t2);border-radius:10px;padding:10px;cursor:pointer">Cancelar</button>'+
+    '<button onclick="salvarPilar(\''+saveArgs+'\')" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
+    '</div></div>';
+  document.body.appendChild(m);
+}
+function abrirNovoPilar(temaId){ abrirModalPilar(temaId,null); }
+function editarPilar(id){ var p=_mPilares.find(function(p){return p.id===id;});if(p)abrirModalPilar(p.tema_id,id); }
+function fecharModalPilar(){var m=document.getElementById('modal-pilar');if(m)m.remove();}
+async function salvarPilar(ids){
+  if(!_mAlunoId)return;
+  var parts=ids.split('|');
+  var pilarId=parts[0]||null;
+  var temaId=parts[1]||null;
+  var titulo=document.getElementById('mp-titulo').value.trim();
+  if(!titulo){showToast('❌ Título obrigatório');return;}
+  var data={titulo:titulo,descricao:document.getElementById('mp-desc').value.trim()||null,aluno_id:_mAlunoId,tema_id:temaId};
+  try{
+    if(pilarId) await api('pilares_tema?id=eq.'+pilarId,'PATCH',data);
+    else await api('pilares_tema','POST',data);
+    fecharModalPilar();showToast('✅ Pilar salvo');await loadMapaMentor();
+  }catch(e){showToast('❌ '+e.message);}
+}
+async function pausarPilar(id){
+  var pilar=_mPilares.find(function(p){return p.id===id;});if(!pilar)return;
+  await api('pilares_tema?id=eq.'+id,'PATCH',{ativo:!pilar.ativo});
+  fecharModalPilar();showToast(pilar.ativo?'⏸ Pausado':'▶ Ativado');await loadMapaMentor();
+}
+
 function goTab(id){
   // tabs mobile
   document.querySelectorAll('#main-tabs .tab').forEach(t=>t.classList.remove('active'));
-  const map={alunos:0,montar:1,novo:2,biblioteca:3,desafios:4,'aulas-mentor':5,videos:6,visao:7};
+  const map={alunos:0,montar:1,novo:2,biblioteca:3,desafios:4,'mapa-mentor':5,'aulas-mentor':6,videos:7,visao:8};
   if(map[id]!==undefined) document.querySelectorAll('#main-tabs .tab')[map[id]].classList.add('active');
   // sidebar desktop
   document.querySelectorAll('.sidebar-item').forEach(s=>s.classList.remove('active'));
@@ -2695,6 +2884,7 @@ function goTab(id){
   if(id==='desafios') loadDesafios();
   if(id==='aulas-mentor') loadAulasMentor();
   if(id==='biblioteca') loadBiblioteca();
+  if(id==='mapa-mentor'){populaMapaSelect();if(_mAlunoId)loadMapaMentor();}
 }
 
 let toastTimer=null;
