@@ -2783,31 +2783,39 @@ function populaMapaSelect(){
   if(window._alunoAtual) sel.value=window._alunoAtual;
 }
 
+// id do tema sendo editado no modal (null = novo)
+var _modalTemaId=null;
+
 function abrirModalTema(temaId){
+  _modalTemaId=temaId||null;
   var tema=temaId?_mTemas.find(function(t){return t.id===temaId;}):null;
   var m=document.createElement('div');
   m.id='modal-tema';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
+  var pausaBtn=tema?('<button onclick="pausarTema(\''+tema.id+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(tema.ativo?'Pausar':'Ativar')+'</button>'):'';
   m.innerHTML='<div style="background:var(--c1);border-radius:16px;padding:20px;width:100%;max-width:400px">'+
     '<div style="font-weight:700;font-size:16px;margin-bottom:16px;color:var(--t1)">'+(tema?'Editar':'Novo')+' Tema</div>'+
+    (!_mAlunoId?'<div style="background:#f0a83222;border:1px solid #f0a832;border-radius:8px;padding:8px 12px;font-size:12px;color:#f0a832;margin-bottom:12px">⚠️ Selecione um aluno no dropdown antes de salvar</div>':'')+
     '<label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">Título *</label>'+
-    '<input id="mt-titulo" value="'+(tema?tema.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;margin-bottom:2px">'+
+    '<input id="mt-titulo" value="'+(tema?tema.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;box-sizing:border-box">'+
     '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Descrição (opcional)</label>'+
-    '<input id="mt-desc" value="'+(tema?tema.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">'+
+    '<input id="mt-desc" value="'+(tema?tema.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;box-sizing:border-box">'+
     '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Cor</label>'+
     '<input id="mt-cor" type="color" value="'+(tema?tema.cor||'#8b7ff5':'#8b7ff5')+'">'+
     '<div style="display:flex;gap:8px;margin-top:16px">'+
-    (tema?'<button onclick="pausarTema(\''+tema.id+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(tema.ativo?'Pausar':'Ativar')+'</button>':'')+
+    pausaBtn+
     '<button onclick="fecharModalTema()" style="flex:1;background:var(--c3);border:none;color:var(--t2);border-radius:10px;padding:10px;cursor:pointer">Cancelar</button>'+
-    '<button onclick="salvarTema(\'+'+(temaId||'\'\'')+'\')" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
+    '<button onclick="salvarTema()" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
     '</div></div>';
   document.body.appendChild(m);
+  setTimeout(function(){var el=document.getElementById('mt-titulo');if(el)el.focus();},100);
 }
 function abrirNovoTema(id){ abrirModalTema(id||null); }
 function editarTema(id){ abrirModalTema(id); }
 function fecharModalTema(){var m=document.getElementById('modal-tema');if(m)m.remove();}
-async function salvarTema(id){
-  if(!_mAlunoId)return;
+async function salvarTema(){
+  var id=_modalTemaId;
+  if(!_mAlunoId){showToast('⚠️ Selecione um aluno primeiro');return;}
   var titulo=document.getElementById('mt-titulo').value.trim();
   if(!titulo){showToast('❌ Título obrigatório');return;}
   var data={titulo:titulo,descricao:document.getElementById('mt-desc').value.trim()||null,cor:document.getElementById('mt-cor').value,aluno_id:_mAlunoId};
@@ -2823,35 +2831,40 @@ async function pausarTema(id){
   fecharModalTema();showToast(tema.ativo?'⏸ Pausado':'▶ Ativado');await loadMapaMentor();
 }
 
+// ids do pilar/tema sendo editados no modal
+var _modalPilarId=null, _modalPilarTemaId=null;
+
 function abrirModalPilar(temaId,pilarId){
+  _modalPilarId=pilarId||null;
+  _modalPilarTemaId=temaId||null;
   var pilar=pilarId?_mPilares.find(function(p){return p.id===pilarId;}):null;
   var tema=_mTemas.find(function(t){return t.id===(pilar?pilar.tema_id:temaId);});
   var m=document.createElement('div');
   m.id='modal-pilar';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px';
-  var saveArgs=(pilarId||'')+'|'+(temaId||'');
+  var pausaBtn=pilar?('<button onclick="pausarPilar(\''+pilarId+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(pilar.ativo?'Pausar':'Ativar')+'</button>'):'';
   m.innerHTML='<div style="background:var(--c1);border-radius:16px;padding:20px;width:100%;max-width:400px">'+
     '<div style="font-weight:700;font-size:16px;margin-bottom:4px;color:var(--t1)">'+(pilar?'Editar':'Novo')+' Pilar</div>'+
     '<div style="font-size:12px;color:var(--t3);margin-bottom:16px">Tema: '+(tema?tema.titulo:'?')+'</div>'+
     '<label style="font-size:12px;color:var(--t3);display:block;margin-bottom:4px">Título *</label>'+
-    '<input id="mp-titulo" value="'+(pilar?pilar.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;margin-bottom:2px">'+
+    '<input id="mp-titulo" value="'+(pilar?pilar.titulo:'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;box-sizing:border-box">'+
     '<label style="font-size:12px;color:var(--t3);display:block;margin:10px 0 4px">Descrição (dica pro aluno)</label>'+
-    '<input id="mp-desc" value="'+(pilar?pilar.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px">'+
+    '<input id="mp-desc" value="'+(pilar?pilar.descricao||'':'')+'" style="width:100%;background:var(--c2);border:1px solid var(--bd);border-radius:8px;padding:8px;color:var(--t1);font-size:14px;box-sizing:border-box">'+
     '<div style="display:flex;gap:8px;margin-top:16px">'+
-    (pilar?'<button onclick="pausarPilar(\''+pilarId+'\')" style="background:var(--c3);border:none;color:var(--t3);border-radius:10px;padding:10px;cursor:pointer;font-size:13px">'+(pilar.ativo?'Pausar':'Ativar')+'</button>':'')+
+    pausaBtn+
     '<button onclick="fecharModalPilar()" style="flex:1;background:var(--c3);border:none;color:var(--t2);border-radius:10px;padding:10px;cursor:pointer">Cancelar</button>'+
-    '<button onclick="salvarPilar(\''+saveArgs+'\')" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
+    '<button onclick="salvarPilar()" style="flex:2;background:var(--pu);color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;cursor:pointer">Salvar</button>'+
     '</div></div>';
   document.body.appendChild(m);
+  setTimeout(function(){var el=document.getElementById('mp-titulo');if(el)el.focus();},100);
 }
 function abrirNovoPilar(temaId){ abrirModalPilar(temaId,null); }
 function editarPilar(id){ var p=_mPilares.find(function(p){return p.id===id;});if(p)abrirModalPilar(p.tema_id,id); }
 function fecharModalPilar(){var m=document.getElementById('modal-pilar');if(m)m.remove();}
-async function salvarPilar(ids){
-  if(!_mAlunoId)return;
-  var parts=ids.split('|');
-  var pilarId=parts[0]||null;
-  var temaId=parts[1]||null;
+async function salvarPilar(){
+  var pilarId=_modalPilarId;
+  var temaId=_modalPilarTemaId;
+  if(!_mAlunoId){showToast('⚠️ Selecione um aluno primeiro');return;}
   var titulo=document.getElementById('mp-titulo').value.trim();
   if(!titulo){showToast('❌ Título obrigatório');return;}
   var data={titulo:titulo,descricao:document.getElementById('mp-desc').value.trim()||null,aluno_id:_mAlunoId,tema_id:temaId};
